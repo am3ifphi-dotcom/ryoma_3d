@@ -2,11 +2,12 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { crossSprite } from './textures.js';
+import { buildSkeleton, computeSkinWeights, Rig, POSES } from './rig.js';
 
 const TARGET_HEIGHT = 1.72;
 
 /** 接地面の影（円形グラデーション） */
-function contactShadowTexture() {
+export function contactShadowTexture() {
   const c = document.createElement('canvas');
   c.width = c.height = 256;
   const g = c.getContext('2d');
@@ -21,40 +22,115 @@ function contactShadowTexture() {
   return t;
 }
 
+/**
+ * GLB の単一メッシュに骨を仕込む（非同期・進捗付き）
+ *  - 形状を「身長1.72m・足元y=0・水平中央0」に正規化（ジオメトリに焼き込む）
+ *  - 19本のボーンを生成し、距離ベースでウェイトを自動計算
+ *  - SkinnedMesh に差し替える（元メッシュは予備として残す）
+ */
+/** 形状を「身長1.72m・足元y=0・水平中心0」に正規化する（ジオメトリに焼き込む） */
+export function normalizeModel(model) {
+  model.updateMatrixWorld(true);
+  let src = null;
+  model.traverse((o) => { if (o.isMesh && !src) src = o; });
+  if (!src) throw new Error('メッシュが見つかりません');
+  const geo = src.geometry;
+  geo.applyMatrix4(src.matrixWorld);
+  geo.computeBoundingBox();
+  const bb = geo.boundingBox;
+  const s = TARGET_HEIGHT / Math.max(1e-4, bb.max.y - bb.min.y);
+  geo.scale(s, s, s);
+  geo.computeBoundingBox();
+  const b2 = geo.boundingBox;
+  const cx = (b2.min.x + b2.max.x) / 2, cz = (b2.min.z + b2.max.z) / 2;
+  geo.translate(-cx, -b2.min.y, -cz);
+  geo.computeBoundingSphere();
+  src.position.set(0, 0, 0);
+  src.rotation.set(0, 0, 0);
+  src.scale.set(1, 1, 1);
+  src.castShadow = true;
+  src.receiveShadow = true;
+  src.frustumCulled = false;
+  return src;
+}
+
+export async function prepareRig(model, onProgress = () => {}) {
+  const src = normalizeModel(model);
+  const geo = src.geometry;
+
+  // ── 骨とウェイト ──
+  const built = buildSkeleton();
+  const iter = computeSkinWeights(geo);
+  for (;;) {
+    const step = iter.next();
+    if (step.done) break;
+    onProgress(step.value);
+    await new Promise((r) => setTimeout(r, 0)); // 画面を止めない
+  }
+
+  // ── SkinnedMesh に差し替え ──
+  const skinned = new THREE.SkinnedMesh(geo, src.material);
+  skinned.name = 'ryoma_skinned';
+  skinned.castShadow = true;
+  skinned.receiveShadow = true;
+  skinned.frustumCulled = false;
+  src.parent.add(skinned);
+  src.parent.add(built.root);        // ボーンも同じ親に入れないと matrixWorld が更新されない
+  src.visible = false;
+  skinned.updateMatrixWorld(true);
+  built.root.updateMatrixWorld(true);
+  skinned.bind(built.skeleton, skinned.matrixWorld);
+
+  const rig = new Rig(built);
+  return { skinned, plain: src, rig, boneRoot: built.root, skeleton: built.skeleton };
+}
+
 export class Ryoma {
-  constructor(model, { position = new THREE.Vector3(0.5, 0, -2.75), flip = false } = {}) {
+  /**
+   * @param {THREE.Object3D} model 元メッシュ（予備）
+   * @param {object} opts { position, rig, skinned, plain }
+   */
+  constructor(model, { position = new THREE.Vector3(0.55, 0, -2.75), rig = null, skinned = null, plain = null } = {}) {
     this.root = new THREE.Group();
     this.root.name = 'ryoma';
-    this.model = model;
-    this.root.add(model);
+    this.body = new THREE.Group();
+    this.root.add(this.body);
 
-    // 正規化：身長 TARGET_HEIGHT、足元 y=0、水平中心を 0 に
-    const bbox = new THREE.Box3().setFromObject(model);
-    const size = new THREE.Vector3();
-    bbox.getSize(size);
-    const center = bbox.getCenter(new THREE.Vector3());
-    const s = TARGET_HEIGHT / Math.max(size.y, 0.001);
-    model.scale.setScalar(s);
-    model.position.set(-center.x * s, -bbox.min.y * s, -center.z * s);
+    // 念のため：正規化されていなければここで合わせる（静止モデルの保険）
+    try {
+      const bb = new THREE.Box3().setFromObject(model);
+      const h = bb.max.y - bb.min.y;
+      if (Math.abs(h - TARGET_HEIGHT) > 0.05) normalizeModel(model);
+    } catch { /* */ }
+
+    this.body.add(model);            // plain / skinned / ボーン はこの中に入っている
+    this.model = model;
+    this.plain = plain || model;
+    this.skinned = skinned;
+    this.rig = rig;
+    this.useRig = !!rig;
+    this.plain.visible = !this.useRig;
+    if (skinned) skinned.visible = this.useRig;
 
     this.height = TARGET_HEIGHT;
-    this.flipped = flip;
-    this.baseRotation = flip ? Math.PI : 0;
-    model.rotation.y = this.baseRotation;
     this.root.position.copy(position);
+    // モデルは +X が正面。+Z（教室の後ろ・プレイヤー側）を向かせる
+    this.baseRotation = -Math.PI / 2;
+    this.flipped = false;
+    this.root.rotation.y = this.baseRotation;
 
     // 頭上あたり（吹き出しのアンカー）
     this.anchor = new THREE.Object3D();
-    this.anchor.position.set(0, TARGET_HEIGHT * 0.98, 0.05);
+    this.anchor.position.set(0, TARGET_HEIGHT * 1.02, 0);
     this.root.add(this.anchor);
 
     // 接地影
     const shadow = new THREE.Mesh(
-      new THREE.PlaneGeometry(0.95, 0.95),
+      new THREE.PlaneGeometry(1.0, 1.0),
       new THREE.MeshBasicMaterial({ map: contactShadowTexture(), transparent: true, depthWrite: false, opacity: 0.9 })
     );
     shadow.rotation.x = -Math.PI / 2;
-    shadow.position.y = 0.008;
+    shadow.position.y = 0.01;
     this.root.add(shadow);
     this.contactShadow = shadow;
 
@@ -62,23 +138,52 @@ export class Ryoma {
     this.talkUntil = 0;
     this.talkEnergy = 0;
     this.excite = 0;
-    this.lookTarget = null;
-    this._lookY = 0;
+    this.baseY = 0;
+    this.lookAmount = 1;
+    this._pose = 'rest';
   }
 
-  flip(v) {
-    this.flipped = v ?? !this.flipped;
-    this.baseRotation = this.flipped ? Math.PI : 0;
+  /** リグの ON/OFF（OFF ならスキャンそのままの静止モデル） */
+  setRigEnabled(v) {
+    this.useRig = v && !!this.rig;
+    if (this.skinned) this.skinned.visible = this.useRig;
+    this.plain.visible = !this.useRig;
+  }
+
+  setFacing(deg) { this.facingOffset = (deg || 0) * Math.PI / 180; this._applyRot(); }
+  flip(v) { this.flipped = v ?? !this.flipped; this._applyRot(); }
+  _applyRot() {
+    this.root.rotation.y = this.baseRotation + (this.facingOffset || 0) + (this.flipped ? Math.PI : 0);
   }
 
   /** 話しはじめ（秒数ぶん身振りを強める） */
   speak(seconds = 2.2, energy = 1) {
     this.talkUntil = Math.max(this.talkUntil, this.t + seconds);
     this.talkEnergy = Math.max(this.talkEnergy, energy);
+    this.rig?.speak(seconds);
+    if (energy > 1.1) this.rig?.playOnce(POSES.honshitsu, 1.1, 0.25);
   }
 
+  /** 単発モーション */
+  motion(name, hold = 1.8) {
+    if (!this.rig || !POSES[name]) return false;
+    this._pose = name;
+    this.rig.playOnce(POSES[name], hold, 0.35);
+    return true;
+  }
+  /** ポーズを固定（'rest' で戻す） */
+  hold(name) {
+    if (!this.rig) return;
+    this._pose = name;
+    this.rig.play([{ pose: POSES[name] || POSES.rest, dur: 0.45 }], { loop: true });
+  }
+  get pose() { return this._pose; }
+
   /** ✝本質✝ が出たときの盛り上がり */
-  cheer() { this.excite = Math.min(1.6, this.excite + 1); }
+  cheer() {
+    this.excite = Math.min(1.6, this.excite + 1);
+    this.rig?.playOnce(POSES.honshitsu, 1.3, 0.22);
+  }
 
   update(dt, camera) {
     this.t += dt;
@@ -87,34 +192,17 @@ export class Ryoma {
     this.talkEnergy = Math.max(0, this.talkEnergy - dt * 0.9);
     this.excite = Math.max(0, this.excite - dt * 1.1);
 
-    const m = this.model;
-    // 呼吸
+    // 呼吸・話すときの上下動
     const breath = Math.sin(t * 1.5) * 0.006;
-    // 話すときの細かい上下動
-    const talkBob = talking
-      ? Math.abs(Math.sin(t * 11)) * 0.014 * (0.5 + this.talkEnergy)
-      : 0;
-    // 興奮（✝本質✝）
+    const talkBob = talking ? Math.abs(Math.sin(t * 11)) * 0.012 * (0.5 + this.talkEnergy) : 0;
     const ex = this.excite * (Math.abs(Math.sin(t * 17)) * 0.02 + Math.sin(t * 3.1) * 0.006);
+    this.body.position.y = this.baseY + breath + talkBob + ex;
+    this.body.rotation.z = Math.sin(t * 0.7) * 0.006;
 
-    m.position.y = (this.baseY ?? (this.baseY = m.position.y)) + breath + talkBob + ex;
-    m.rotation.z = Math.sin(t * 0.7) * 0.008 + (this.excite ? Math.sin(t * 9) * 0.012 : 0);
-    m.rotation.x = Math.sin(t * 0.53 + 1) * 0.005;
-
-    // カメラの方を（気持ちだけ）向く
-    if (camera) {
-      const dx = camera.position.x - this.root.position.x;
-      const dz = camera.position.z - this.root.position.z;
-      let want = Math.atan2(dx, dz) - this.baseRotation;
-      while (want > Math.PI) want -= Math.PI * 2;
-      while (want < -Math.PI) want += Math.PI * 2;
-      const clamp = 0.42;
-      want = Math.max(-clamp, Math.min(clamp, want));
-      this._lookY += (want - this._lookY) * Math.min(1, dt * 2.4);
+    if (this.rig) {
+      this.rig.update(dt);
+      if (camera) this.rig.applyLook(camera.position, this.lookAmount);
     }
-    m.rotation.y = this.baseRotation + this._lookY + Math.sin(t * 0.41) * 0.02;
-
-    this.particles?.update(dt);
   }
 }
 
@@ -188,7 +276,6 @@ export function loadRyoma(url, onProgress) {
           if (!o.isMesh) return;
           o.castShadow = true;
           o.receiveShadow = true;
-          o.frustumCulled = true;
           const mats = Array.isArray(o.material) ? o.material : [o.material];
           for (const m of mats) {
             if (!m) continue;
@@ -201,9 +288,7 @@ export function loadRyoma(url, onProgress) {
         });
         resolve(model);
       },
-      (e) => {
-        if (e.total) onProgress?.(e.loaded / e.total);
-      },
+      (e) => { if (e.total) onProgress?.(e.loaded / e.total); },
       (err) => reject(err)
     );
   });

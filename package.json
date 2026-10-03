@@ -7,13 +7,18 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
     "preview": "vite preview --host 0.0.0.0",
+    "test": "node scripts/test-brain.mjs && node scripts/test-scene.mjs",
     "test:brain": "node scripts/test-brain.mjs",
-    "test:scene": "node scripts/test-scene.mjs"
+    "test:scene": "node scripts/test-scene.mjs",
+    "test:rig": "node --max-old-space-size=4096 scripts/test-rig.mjs",
+    "test:motion": "node --max-old-space-size=4096 scripts/test-motion.mjs",
+    "img": "node scripts/analyze-image.mjs"
   },
   "dependencies": {
     "three": "^0.169.0"
   },
   "devDependencies": {
+    "jpeg-js": "^0.4.4",
     "vite": "^5.4.0"
   }
 }

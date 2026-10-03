@@ -26,6 +26,30 @@
   <!-- ── 吹き出し（3Dモデルの頭上） ── -->
   <div id="bubble" class="hidden"><span id="bubbleText"></span><i></i></div>
 
+  <!-- ── 一人称 HUD ── -->
+  <div id="hud" class="hidden">
+    <div id="crosshair"><i></i></div>
+    <div id="prompt" class="hidden"><b>E</b><span id="promptText"></span></div>
+    <div id="hudHint">
+      <b>WASD</b> 歩く ・ <b>Shift</b> 小走り ・ <b>C</b> しゃがむ ・ <b>マウス</b> 視点<br />
+      <b>E</b> 話す／調べる ・ <b>Esc</b> 視点ロック解除 ・ <b>M</b> カメラ切替
+    </div>
+    <div id="minimapWrap"><canvas id="minimap" width="180" height="196"></canvas><span>北棟2F</span></div>
+    <div id="toast" class="hidden"></div>
+  </div>
+
+  <!-- ── モーション（両馬の手・ポーズ） ── -->
+  <div id="motions" class="hidden">
+    <div class="motion-head">モーション<small>クリックで再生（1〜9 キーでも可）</small></div>
+    <div class="motion-grid"></div>
+  </div>
+
+  <!-- ── タッチ操作 ── -->
+  <div id="touch" class="hidden">
+    <div id="stick"><i></i></div>
+    <button id="btnTouchE" type="button">E<small>話す</small></button>
+  </div>
+
   <!-- ── 上部バー ── -->
   <header id="topbar">
     <div class="brand">
@@ -34,6 +58,10 @@
         <b>両馬二郎と話す</b>
         <small>桐葉高校 北棟・理数科B組 ── 火曜三限・地理</small>
       </span>
+    </div>
+    <div class="modes">
+      <button id="btnMode" class="mode on" data-mode="walk">🚶 歩く</button>
+      <button id="btnModeCam" class="mode" data-mode="cam">🎥 カメラ</button>
     </div>
     <nav class="views" id="views">
       <button data-view="seat" class="on">席</button>
@@ -103,8 +131,25 @@
         <input type="checkbox" id="cfgAmb" />
       </div>
       <div class="row switch">
-        <label for="cfgFlip">モデルの向きを反転</label>
+        <label for="cfgFlip">両馬の向きを反転（180°）</label>
         <input type="checkbox" id="cfgFlip" />
+      </div>
+      <div class="row switch">
+        <label for="cfgRig">腕と手を動かす（自動リグ）</label>
+        <input type="checkbox" id="cfgRig" checked />
+      </div>
+      <div class="row switch">
+        <label for="cfgSteps">足音を出す</label>
+        <input type="checkbox" id="cfgSteps" checked />
+      </div>
+      <div class="row">
+        <label for="cfgTime">時間帯</label>
+        <select id="cfgTime">
+          <option value="morning">朝（朝自習）</option>
+          <option value="day">昼（火曜三限・地理）</option>
+          <option value="evening">夕（放課後）</option>
+          <option value="night">夜（施錠前）</option>
+        </select>
       </div>
       <div class="row switch">
         <label for="cfgCorn">自販機にコーンスープを補充する</label>

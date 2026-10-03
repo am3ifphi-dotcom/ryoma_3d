@@ -20,7 +20,7 @@ function tex(canvas, { repeat = null, srgb = true, aniso = 4 } = {}) {
 /** 黒板：等高線の地形図・味噌・河岸段丘・ヘイカツの字 */
 export function chalkboardTexture() {
   const [c, g] = cv(2048, 768);
-  g.fillStyle = '#16302a';
+  g.fillStyle = '#282a2d';
   g.fillRect(0, 0, c.width, c.height);
   // 消し残り
   for (let i = 0; i < 220; i++) {
@@ -280,21 +280,34 @@ export function noticeTexture() {
 }
 
 /** 床（ビニルタイル） */
+/** 床：画像の床は青灰色（#8d97a3〜#b3bec5） */
 export function floorTexture() {
   const [c, g] = cv(512, 512);
-  g.fillStyle = '#cbb99c';
+  g.fillStyle = '#8d97a3';
   g.fillRect(0, 0, 512, 512);
-  for (let i = 0; i < 9000; i++) {
-    g.fillStyle = `rgba(${140 + Math.random() * 90},${125 + Math.random() * 80},${100 + Math.random() * 70},${Math.random() * 0.35})`;
+  // Pタイルの粒
+  for (let i = 0; i < 14000; i++) {
+    const v = Math.random();
+    g.fillStyle = `rgba(${(v > 0.5 ? 150 : 90) + Math.random() * 60},${(v > 0.5 ? 158 : 98) + Math.random() * 55},${(v > 0.5 ? 172 : 112) + Math.random() * 55},${Math.random() * 0.4})`;
     g.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
   }
-  g.strokeStyle = 'rgba(120,105,85,0.5)';
-  g.lineWidth = 3;
-  for (let i = 0; i <= 512; i += 128) {
+  // 目地
+  g.strokeStyle = 'rgba(70,80,92,0.55)';
+  g.lineWidth = 2;
+  for (let i = 0; i <= 512; i += 170.6) {
     g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 512); g.stroke();
     g.beginPath(); g.moveTo(0, i); g.lineTo(512, i); g.stroke();
   }
-  return tex(c, { repeat: [7, 6] });
+  // 光のまだら
+  for (let i = 0; i < 40; i++) {
+    g.globalAlpha = 0.05;
+    g.fillStyle = '#e9e2cf';
+    g.beginPath();
+    g.ellipse(Math.random() * 512, Math.random() * 512, 30 + Math.random() * 90, 20 + Math.random() * 60, Math.random() * 3, 0, 7);
+    g.fill();
+  }
+  g.globalAlpha = 1;
+  return tex(c, { repeat: [6, 6], aniso: 8 });
 }
 
 /** 木目（机・椅子） */
@@ -317,7 +330,7 @@ export function woodTexture(tint = '#c69c6d') {
 /** 壁紙（少し汚れたクリーム色） */
 export function wallTexture() {
   const [c, g] = cv(512, 512);
-  g.fillStyle = '#e9e4d8';
+  g.fillStyle = '#ece3c5';
   g.fillRect(0, 0, 512, 512);
   for (let i = 0; i < 5000; i++) {
     g.fillStyle = `rgba(${180 + Math.random() * 60},${175 + Math.random() * 60},${160 + Math.random() * 60},0.25)`;
@@ -371,5 +384,156 @@ export function corridorPosterTexture() {
   g.fillStyle = 'rgba(190,40,40,0.8)';
   g.font = 'bold 40px sans-serif';
   g.fillText('✝', 430, 660);
+  return tex(c);
+}
+
+/* ══════════════════════════════════════════════════
+   追加の小物テクスチャ（教室の密度を上げる用）
+   ══════════════════════════════════════════════════ */
+
+const JP = '"Hiragino Mincho ProN","Yu Mincho",serif';
+const JP2 = '"Hiragino Sans","Yu Gothic",sans-serif';
+
+/** 時間割 */
+export function timetableTexture() {
+  const [c, g] = cv(512, 384);
+  g.fillStyle = '#fbf7ec'; g.fillRect(0, 0, 512, 384);
+  g.fillStyle = '#2f4858'; g.fillRect(0, 0, 512, 64);
+  g.fillStyle = '#fff'; g.font = `bold 34px ${JP}`;
+  g.fillText('理数科B組 時間割', 22, 45);
+  const days = ['月', '火', '水', '木', '金'];
+  const subs = [
+    ['数II', '英総', '化', '体', '地学'],
+    ['現文', '数II', '英総', '物', '化'],
+    ['物', '体', '数II', '現文', '英総'],
+    ['英総', '化', '地学', '数II', '総探'],
+    ['地学', '現文', '物', '英総', 'HR'],
+  ];
+  g.fillStyle = '#3a3a3a'; g.font = `26px ${JP2}`;
+  days.forEach((d, i) => g.fillText(d, 44 + i * 96, 108));
+  g.font = `25px ${JP2}`;
+  subs.forEach((row, r) => row.forEach((s, i) => {
+    g.fillStyle = s === '地学' ? '#1d6b4f' : s === '数II' ? '#8a3b2f' : '#333';
+    g.fillText(s, 22 + i * 96, 152 + r * 48);
+  }));
+  g.strokeStyle = '#b9b2a2'; g.lineWidth = 2;
+  for (let i = 0; i <= 5; i++) { g.beginPath(); g.moveTo(0, 118 + i * 48); g.lineTo(512, 118 + i * 48); g.stroke(); }
+  for (let i = 0; i <= 5; i++) { g.beginPath(); g.moveTo(14 + i * 96, 70); g.lineTo(14 + i * 96, 358); g.stroke(); }
+  g.strokeStyle = '#2f4858'; g.lineWidth = 6; g.strokeRect(3, 3, 506, 378);
+  return tex(c);
+}
+
+/** 「理数科の心得」ポスター（✝本質✝入り） */
+export function rulePosterTexture() {
+  const [c, g] = cv(512, 720);
+  g.fillStyle = '#f7f2e4'; g.fillRect(0, 0, 512, 720);
+  g.fillStyle = '#2f4858'; g.fillRect(0, 0, 512, 96);
+  g.fillStyle = '#fff'; g.font = `bold 38px ${JP}`;
+  g.fillText('理数科の心得', 30, 62);
+  g.fillStyle = '#2a2a2a'; g.font = `26px ${JP}`;
+  [
+    '一、疑問は恥ではない。保留が恥である。',
+    '二、式を覚えるな。式が生まれた理由を覚えよ。',
+    '三、観測者は必ず対象を歪める。自覚せよ。',
+    '四、「は？」で思考を止めない。',
+    '五、答えが出たら、単位を疑え。',
+    '六、✝本質✝は探すものではない。',
+    '　　漏れ出してしまうものである。',
+  ].forEach((s, i) => g.fillText(s, 34, 168 + i * 58));
+  g.strokeStyle = '#c8bfae'; g.lineWidth = 4;
+  g.strokeRect(10, 10, 492, 700);
+  g.fillStyle = 'rgba(180,60,60,0.75)'; g.font = `bold 46px ${JP2}`;
+  g.fillText('✝', 60, 640);
+  g.fillText('✝', 420, 250);
+  return tex(c);
+}
+
+/** カーテン（生成り・少し波打つ縦じわ） */
+export function curtainTexture() {
+  const [c, g] = cv(256, 512);
+  g.fillStyle = '#f0e7d2';
+  g.fillRect(0, 0, 256, 512);
+  for (let x = 0; x < 256; x += 8) {
+    g.fillStyle = `rgba(210,198,175,${0.15 + Math.random() * 0.25})`;
+    g.fillRect(x, 0, 4, 512);
+    g.fillStyle = 'rgba(255,252,242,0.35)';
+    g.fillRect(x + 4, 0, 2, 512);
+  }
+  g.fillStyle = 'rgba(120,110,95,0.18)';
+  g.fillRect(0, 500, 256, 12);
+  return tex(c, { repeat: [1, 1] });
+}
+
+/** 下駄箱・ロッカーの木目（扉の線入り） */
+export function lockerTexture() {
+  const [c, g] = cv(512, 512);
+  g.fillStyle = '#c9a885';
+  g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 120; i++) {
+    g.strokeStyle = `rgba(120,88,54,${0.05 + Math.random() * 0.12})`;
+    g.lineWidth = 1 + Math.random() * 3;
+    g.beginPath();
+    const y = Math.random() * 512;
+    g.moveTo(0, y);
+    for (let x = 0; x <= 512; x += 32) g.lineTo(x, y + Math.sin(x * 0.02 + i) * 3);
+    g.stroke();
+  }
+  const cols = 4, rows = 8;
+  for (let i = 1; i < cols; i++) {
+    g.fillStyle = 'rgba(90,66,44,0.5)';
+    g.fillRect((512 / cols) * i - 2, 0, 4, 512);
+  }
+  for (let i = 1; i < rows; i++) {
+    g.fillStyle = 'rgba(90,66,44,0.5)';
+    g.fillRect(0, (512 / rows) * i - 2, 512, 4);
+  }
+  for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) {
+    g.fillStyle = '#8e8a84';
+    g.fillRect((512 / cols) * i + (512 / cols) / 2 - 8, (512 / rows) * j + 30, 16, 5);
+  }
+  return tex(c, { repeat: [1, 1] });
+}
+
+/** 天井（吸音板の格子） */
+export function ceilingTexture() {
+  const [c, g] = cv(512, 512);
+  g.fillStyle = '#f2ecd9';
+  g.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 6000; i++) {
+    g.fillStyle = `rgba(200,193,175,${Math.random() * 0.5})`;
+    g.fillRect(Math.random() * 512, Math.random() * 512, 2, 2);
+  }
+  g.strokeStyle = 'rgba(170,163,148,0.8)';
+  g.lineWidth = 3;
+  for (let i = 0; i <= 512; i += 85.3) {
+    g.beginPath(); g.moveTo(i, 0); g.lineTo(i, 512); g.stroke();
+    g.beginPath(); g.moveTo(0, i); g.lineTo(512, i); g.stroke();
+  }
+  return tex(c, { repeat: [8, 8] });
+}
+
+/** 教科書の表紙（机に置く用） */
+export function bookCoverTexture(title = '数II', color = '#2f4858') {
+  const [c, g] = cv(256, 340);
+  g.fillStyle = color; g.fillRect(0, 0, 256, 340);
+  g.fillStyle = 'rgba(255,255,255,0.92)'; g.fillRect(14, 14, 228, 60);
+  g.fillStyle = color; g.font = `bold 40px ${JP}`;
+  g.fillText(title, 34, 58);
+  g.strokeStyle = 'rgba(255,255,255,0.5)'; g.lineWidth = 3;
+  g.strokeRect(30, 120, 196, 190);
+  g.fillStyle = 'rgba(255,255,255,0.35)'; g.font = `22px ${JP2}`;
+  g.fillText('桐葉高校', 40, 330);
+  return tex(c);
+}
+
+/** 廊下の「理数科B組」プレート */
+export function namePlateTexture() {
+  const [c, g] = cv(512, 160);
+  g.fillStyle = '#f4efe1'; g.fillRect(0, 0, 512, 160);
+  g.fillStyle = '#2f4858'; g.fillRect(0, 0, 12, 160);
+  g.fillStyle = '#24313c'; g.font = `bold 62px ${JP}`;
+  g.fillText('理数科Ｂ組', 40, 100);
+  g.strokeStyle = '#2f4858'; g.lineWidth = 5;
+  g.strokeRect(3, 3, 506, 154);
   return tex(c);
 }
