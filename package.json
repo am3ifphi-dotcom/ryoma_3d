@@ -1,0 +1,19 @@
+{
+  "name": "ryoma-3d-honshitsu-classroom",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview --host 0.0.0.0",
+    "test:brain": "node scripts/test-brain.mjs",
+    "test:scene": "node scripts/test-scene.mjs"
+  },
+  "dependencies": {
+    "three": "^0.169.0"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>✝本質✝教室 ── 理数科B組・両馬二郎と話す</title>
+<meta name="description" content="桐葉高校・北棟の理数科B組。窓際の室外機が唸る教室で、両馬二郎と✝本質✝について話す。" />
+<link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+<div id="app">
+  <canvas id="scene"></canvas>
+
+  <!-- ── 読み込み画面 ── -->
+  <div id="loading">
+    <div class="load-inner">
+      <div class="load-mark">✝</div>
+      <h1>北棟・理数科B組</h1>
+      <p class="load-sub">偏差値60の教室から、✝本質✝が漏れ出しています</p>
+      <div class="bar"><i id="loadbar"></i></div>
+      <p class="load-note" id="loadnote">17MBの3Dモデルを読み込み中…</p>
+      <p class="load-tip">窓の真横にエアコンの室外機があります。冷房をつけると、授業の声と室外機の唸りが二重に聞こえます。</p>
+    </div>
+  </div>
+
+  <!-- ── 吹き出し（3Dモデルの頭上） ── -->
+  <div id="bubble" class="hidden"><span id="bubbleText"></span><i></i></div>
+
+  <!-- ── 上部バー ── -->
+  <header id="topbar">
+    <div class="brand">
+      <span class="crest">✝</span>
+      <span class="brand-txt">
+        <b>両馬二郎と話す</b>
+        <small>桐葉高校 北棟・理数科B組 ── 火曜三限・地理</small>
+      </span>
+    </div>
+    <nav class="views" id="views">
+      <button data-view="seat" class="on">席</button>
+      <button data-view="side">窓</button>
+      <button data-view="board">黒板</button>
+      <button data-view="room">教室</button>
+      <button data-view="corridor">廊下</button>
+    </nav>
+    <div class="tools">
+      <button id="btnBoard" title="匿名掲示板">掲示板<i class="dot" id="boardDot"></i></button>
+      <button id="btnSettings" title="設定">設定</button>
+    </div>
+  </header>
+
+  <!-- ── チャット ── -->
+  <aside id="chat">
+    <div class="chat-head">
+      <div class="who">
+        <div class="avatar">✝</div>
+        <div>
+          <b>両馬二郎</b>
+          <small id="ryomaStatus">理数科B組・窓際の席</small>
+        </div>
+      </div>
+      <div class="chat-head-tools">
+        <button id="btnVoice" class="ghost" title="音声でしゃべる">🔈</button>
+        <button id="btnCollapse" class="ghost mobile-only" title="閉じる">▾</button>
+      </div>
+    </div>
+    <div id="log" aria-live="polite"></div>
+    <div id="topics"></div>
+    <form id="composer" autocomplete="off">
+      <input id="input" type="text" placeholder="両馬に話しかける…（Enterで送信）" maxlength="300" />
+      <button id="send" type="submit">送信</button>
+    </form>
+    <button id="btnExpand" class="mobile-only">△ 会話を開く</button>
+  </aside>
+
+  <!-- ── 掲示板 ── -->
+  <section id="boardPanel" class="panel hidden">
+    <div class="panel-head">
+      <b>ヘイカツ雑談スレ</b>
+      <button class="close" data-close="boardPanel">×</button>
+    </div>
+    <div class="board-scroll" id="boardScroll">
+      <div class="board-empty">両馬が何か書き込むまで、ここは静かです。</div>
+    </div>
+  </section>
+
+  <!-- ── 設定 ── -->
+  <section id="settingsPanel" class="panel hidden">
+    <div class="panel-head">
+      <b>設定</b>
+      <button class="close" data-close="settingsPanel">×</button>
+    </div>
+    <div class="panel-body">
+      <div class="row switch">
+        <label for="cfgVoice">音声でしゃべる</label>
+        <input type="checkbox" id="cfgVoice" />
+      </div>
+      <div class="row">
+        <label for="cfgRate">話す速度</label>
+        <input type="range" id="cfgRate" min="0.7" max="1.5" step="0.05" value="1.1" />
+      </div>
+      <div class="row switch">
+        <label for="cfgAmb">室外機の唸り（環境音）</label>
+        <input type="checkbox" id="cfgAmb" />
+      </div>
+      <div class="row switch">
+        <label for="cfgFlip">モデルの向きを反転</label>
+        <input type="checkbox" id="cfgFlip" />
+      </div>
+      <div class="row switch">
+        <label for="cfgCorn">自販機にコーンスープを補充する</label>
+        <input type="checkbox" id="cfgCorn" checked />
+      </div>
+      <div class="row switch">
+        <label for="cfgCameo">クラスメイトを割り込ませる</label>
+        <input type="checkbox" id="cfgCameo" checked />
+      </div>
+      <div class="row switch">
+        <label for="cfgLite">軽量モード（影と解像度を落とす）</label>
+        <input type="checkbox" id="cfgLite" />
+      </div>
+
+      <hr />
+      <h3>AI接続（任意）</h3>
+      <p class="hint">
+        既定では、原作テキストから組み立てた“両馬二郎エンジン”がオフラインで応答します。
+        OpenAI互換APIのキーを入れると、より自由に会話できます。
+        キーはこのブラウザ（localStorage）にだけ保存されます。
+      </p>
+      <div class="row switch">
+        <label for="cfgLLM">AI接続を使う</label>
+        <input type="checkbox" id="cfgLLM" />
+      </div>
+      <div class="row">
+        <label for="cfgEndpoint">Endpoint</label>
+        <input type="text" id="cfgEndpoint" value="https://api.openai.com/v1/chat/completions" />
+      </div>
+      <div class="row">
+        <label for="cfgModel">Model</label>
+        <input type="text" id="cfgModel" value="gpt-4o-mini" />
+      </div>
+      <div class="row">
+        <label for="cfgKey">API Key</label>
+        <input type="password" id="cfgKey" placeholder="sk-..." />
+      </div>
+      <div class="row col">
+        <label for="cfgPrompt">システムプロンプト</label>
+        <textarea id="cfgPrompt" rows="8"></textarea>
+      </div>
+
+      <hr />
+      <div class="row btns">
+        <button id="btnExport" class="ghost">会話を保存(.txt)</button>
+        <button id="btnClear" class="ghost danger">会話を消す</button>
+      </div>
+      <p class="credit">
+        出典: 「偏差値60の教室から✝本質✝が漏れ出している件について」（一年生編 / 二年生編 / 三年生編 一学期）
+      </p>
+    </div>
+  </section>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
