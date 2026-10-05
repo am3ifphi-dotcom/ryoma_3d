@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>✝本質✝の教室 — 両馬二郎に話しかける</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700&family=Klee+One:wght@600&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+
+    <!-- start / loading overlay -->
+    <div id="start">
+      <div class="start-card">
+        <div class="start-kicker">桐葉高校 北棟　理数科 1年B組</div>
+        <h1><span class="dag">✝</span>本質<span class="dag">✝</span>の教室</h1>
+        <p class="start-sub">教室には両馬二郎が一人で立っている。<br />話しかけると、だいたい✝本質✝の話になる。</p>
+        <div class="controls">
+          <div><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移動</div>
+          <div><kbd>Shift</kbd> 走る</div>
+          <div><kbd>マウス</kbd> 視点</div>
+          <div><kbd>E</kbd> 話しかける / 次へ</div>
+          <div><kbd>1</kbd>〜<kbd>3</kbd> 返事を選ぶ</div>
+          <div><kbd>Esc</kbd> マウス解放 / 会話終了</div>
+        </div>
+        <div class="progress"><div class="bar" id="bar"></div><div class="progress-label" id="progressLabel">モデルを読み込み中…</div></div>
+        <button id="enter" disabled>読み込み中…</button>
+        <div class="start-foot">両馬二郎 3Dモデル：Tripo PBR（自動リグ済み） ／ 教室・モーション・音：すべて手続き生成</div>
+      </div>
+    </div>
+
+    <!-- HUD -->
+    <div id="hud">
+      <div id="crosshair"></div>
+      <div id="prompt"><kbd>E</kbd> 話しかける</div>
+      <div id="counter" title="両馬が✝本質✝と言った回数"><span class="dag">✝</span>本質<span class="dag">✝</span> <b id="count">0</b></div>
+      <div id="hint">WASD 移動 ・ Shift 走る ・ E 話す ・ Tab 設定</div>
+      <div id="vignette"></div>
+      <div id="bubble">
+        <div class="bubble-name"></div>
+        <div class="bubble-text"></div>
+        <div class="bubble-next">▼</div>
+      </div>
+      <div id="choices"></div>
+      <div id="joystick"><div class="knob"></div></div>
+      <button id="talkBtn">話す</button>
+      <div id="settings">
+        <h3>設定</h3>
+        <label><span>モデル品質</span>
+          <select id="quality"><option value="high">最高（フル 190万ポリ）</option><option value="low">軽量（LOD 38万ポリ）</option></select></label>
+        <label><span>影</span><select id="shadows"><option value="high">高</option><option value="low">低</option><option value="off">なし</option></select></label>
+        <label><span>マウス感度</span><input id="sens" type="range" min="0.5" max="3" step="0.1" value="1" /></label>
+        <label><span>音量</span><input id="vol" type="range" min="0" max="1" step="0.05" value="0.8" /></label>
+        <label><span>会話の記録をリセット</span><button id="resetProgress">リセット</button></label>
+        <div class="settings-foot">Tab で閉じる</div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
