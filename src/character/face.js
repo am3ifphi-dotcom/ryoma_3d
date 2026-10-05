@@ -129,7 +129,8 @@ function makeLidMaterial(side) {
 
 function makeBrowCoverMaterial(side) {
   const u = { uOffset: { value: 0.0004 }, uShow: { value: 1 } };
-  const m = new THREE.MeshStandardMaterial({ color: SKIN.clone(), roughness: 0.75, metalness: 0, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
+  // the skin under the brow sits in the brow-ridge shadow → slightly darker than the cheek tone
+  const m = new THREE.MeshStandardMaterial({ color: SKIN.clone().multiplyScalar(0.9), roughness: 0.75, metalness: 0, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 });
   m.onBeforeCompile = (shader) => {
     Object.assign(shader.uniforms, u);
     injectVertex(shader);

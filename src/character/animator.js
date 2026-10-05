@@ -210,6 +210,7 @@ export class CharacterAnimator {
       upperArmR: [0.8 * noise1(t * 0.3, 9), 0, 1.2 * noise1(t * 0.27, 10)],
       upperArmL: [0.8 * noise1(t * 0.3, 11), 0, 1.0 * noise1(t * 0.27, 12)],
       lowerArmR: [0, 0, 1.0 * noise1(t * 0.33, 13)],
+      lowerArmL: [0, 0, 0.8 * noise1(t * 0.31, 16)],
       handR: [0, 0, 2.0 * noise1(t * 0.5, 14)],
       handL: [0, 0, 1.5 * noise1(t * 0.5, 15)],
     };
