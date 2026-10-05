@@ -16,6 +16,12 @@ const GESTURE_FACE = {
 };
 const MOOD_FACE = { up: 'happy', low: 'bored', calm: 'neutral' };
 function pickExpression(node) {
+  const base = pickBase(node);
+  // a line that drops a ✝本質✝ always comes with a smirk at least
+  if (/✝本質✝/.test(node.t || '') && ['neutral', 'serious', 'bored', 'think'].includes(base)) return 'smug';
+  return base;
+}
+function pickBase(node) {
   if (node.mood === 'up' && ['grin', 'excited', 'happy', 'smug'].includes(GESTURE_FACE[node.g])) return GESTURE_FACE[node.g];
   if (node.mood === 'low') return GESTURE_FACE[node.g] === 'annoyed' ? 'annoyed' : (node.g === 'scratch' || node.g === 'lookAwayShy' ? 'sad' : 'bored');
   return GESTURE_FACE[node.g] || MOOD_FACE[node.mood || 'calm'];

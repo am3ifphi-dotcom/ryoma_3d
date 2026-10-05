@@ -251,6 +251,13 @@ function tick() {
       else if (pick === 'lookWindow') ryoma.face.setExpression('serious', { speed: 3 });
       state.fidgetTimer = 7 + Math.random() * 9;
     }
+    // micro-expressions while reading the group chat (not noticed, not talking)
+    state.microTimer = (state.microTimer ?? 4) - dt;
+    if (state.microTimer <= 0 && !dialogue?.active && !state.noticed) {
+      const pool = ['bored', 'bored', 'smug', 'think', 'neutral', 'annoyed'];
+      ryoma.face.setExpression(pool[Math.floor(Math.random() * pool.length)], { speed: 2.5 });
+      state.microTimer = 4 + Math.random() * 6;
+    }
 
     // --- interaction prompt: close + looking at him ---
     camera.getWorldDirection(_dir);

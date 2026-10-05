@@ -12,7 +12,7 @@ export class Player {
     this.bounds = bounds; // {minX,maxX,minZ,maxZ}
     this.eyeHeight = eyeHeight;
     this.radius = radius;
-    this.position = new THREE.Vector3(3.3, 0, 3.4);
+    this.position = new THREE.Vector3(3.95, 0, 3.3); // aisle between the last desk column and the corridor wall
     this.velocity = new THREE.Vector3();
     this.yaw = 0.5; // yaw 0 = looking down -z (towards the board)
     this.pitch = -0.03;
@@ -142,10 +142,12 @@ export class Player {
     this.velocity.z += (targetVz - this.velocity.z) * a;
 
     // axis-separated collision
+    // if we are already inside something (bad spawn, moved collider…) never block → always possible to escape
+    const stuck = this._collides(this.position.x, this.position.z);
     const nx = this.position.x + this.velocity.x * dt;
-    if (!this._collides(nx, this.position.z)) this.position.x = nx; else this.velocity.x = 0;
+    if (stuck || !this._collides(nx, this.position.z)) this.position.x = nx; else this.velocity.x = 0;
     const nz = this.position.z + this.velocity.z * dt;
-    if (!this._collides(this.position.x, nz)) this.position.z = nz; else this.velocity.z = 0;
+    if (stuck || !this._collides(this.position.x, nz)) this.position.z = nz; else this.velocity.z = 0;
 
     // head bob + footsteps
     this.speed = Math.hypot(this.velocity.x, this.velocity.z);

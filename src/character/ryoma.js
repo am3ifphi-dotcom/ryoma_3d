@@ -133,6 +133,7 @@ export async function loadRyoma({ onProgress } = {}) {
 
   // --- face (eyelids / brows / mouth overlays) -----------------------------------
   const face = new Face({ patches: facePatches, skeleton, parent: model, baseMaterial: material });
+  face.setExpression('bored', { speed: 50 }); // he is on his phone when the player arrives
 
   // --- props -------------------------------------------------------------------
   const phone = new THREE.Group();
@@ -193,6 +194,7 @@ export async function loadRyoma({ onProgress } = {}) {
     getHead(out = headWorld) { bones.head.getWorldPosition(out); return out; },
     setQuality(high) {
       skinnedFull.visible = high;
+      face.setLowQuality(!high);
       // in low mode the LOD is also the visible mesh; keep it on the default layer
       skinnedLod.layers.set(high ? SHADOW_LAYER : 0);
       if (!high) skinnedLod.layers.enable(SHADOW_LAYER);

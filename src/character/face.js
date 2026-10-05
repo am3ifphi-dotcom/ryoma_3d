@@ -360,6 +360,15 @@ export class Face {
     this.talkDecay = 0.16;
   }
   setVisible(b) { this.visible = b; for (const m of this.meshes) m.visible = b; }
+  /** the decimated LOD surface wobbles ±1 mm around the full mesh → float the patches higher in light mode */
+  setLowQuality(low) {
+    for (const m of this.meshes) {
+      const u = m.material.userData.uniforms;
+      if (!u?.uOffset) continue;
+      u.uOffset.base ??= u.uOffset.value;
+      u.uOffset.value = u.uOffset.base * (low ? 3.5 : 1);
+    }
+  }
 
   update(dt) {
     this.time += dt;
