@@ -11,7 +11,7 @@ import { sfx } from './audio/sfx.js';
 // ---------------------------------------------------------------------------
 const canvas = document.getElementById('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.75));
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -23,17 +23,17 @@ const scene = new THREE.Scene();
 scene.background = new THREE.Color(0xbcd8f5);
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.45;
+scene.environmentIntensity = 0.6;
 
 const camera = new THREE.PerspectiveCamera(72, window.innerWidth / window.innerHeight, 0.05, 200);
-const BASE_FOV = 72, TALK_FOV = 60;
+const BASE_FOV = 62, TALK_FOV = 42; // conversation = bust shot so the face detail is actually visible
 
 // ---------------------------------------------------------------------------
 // lights
 // ---------------------------------------------------------------------------
 const hemi = new THREE.HemisphereLight(0xdfe9f3, 0x8c8578, 0.55);
 scene.add(hemi);
-const sun = new THREE.DirectionalLight(0xfff0d8, 2.8);
+const sun = new THREE.DirectionalLight(0xfff0d8, 2.2);
 sun.position.set(-9, 7.5, -1.5);
 sun.target.position.set(1.5, 0, 0.5);
 sun.castShadow = true;
@@ -53,7 +53,7 @@ for (const z of [-2.6, 0, 2.6]) {
   ceilingLights.push(p);
 }
 // soft top light on the character for a contact shadow under him
-const keySpot = new THREE.SpotLight(0xfff6ea, 20, 9, Math.PI / 5, 0.6, 1.6);
+const keySpot = new THREE.SpotLight(0xfff6ea, 14, 9, Math.PI / 5, 0.7, 1.6);
 keySpot.position.set(0.6, 2.85, -1.6);
 keySpot.castShadow = true;
 keySpot.shadow.mapSize.set(1024, 1024);
@@ -173,7 +173,7 @@ window.addEventListener('keydown', (e) => {
 $('quality').addEventListener('change', (e) => {
   const high = e.target.value === 'high';
   ryoma?.setQuality(high);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, high ? 1.75 : 1.0));
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, high ? 2 : 1.0));
 });
 $('shadows').addEventListener('change', (e) => {
   const v = e.target.value;
@@ -269,7 +269,7 @@ function tick() {
     // --- conversation camera assist + FOV ---
     if (dialogue?.active) {
       ryoma.getHead(_head);
-      _head.y += 0.02;
+      _head.y -= 0.10; // frame the face in the upper third (bubble above, shoulders below)
       if (state.talkAssist > 0) { player.lookAt(_head, dt, 5); state.talkAssist -= dt / 0.9; }
     }
     const targetFov = dialogue?.active ? TALK_FOV : BASE_FOV;

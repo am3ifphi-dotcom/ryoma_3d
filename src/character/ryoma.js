@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/examples/jsm/libs/meshopt_decoder.module.js';
 import { applySkinWeights, buildSkeleton } from './rig.js';
+import { computeSmoothNormals } from './normals.js';
 import { CharacterAnimator } from './animator.js';
 import { Face, loadFacePatches } from './face.js';
 
@@ -94,8 +95,17 @@ export async function loadRyoma({ onProgress } = {}) {
   material.roughness = 1.0;
   material.metalness = 1.0; // ORM texture drives both
   material.envMapIntensity = 0.6;
-  material.normalScale.set(0.8, 0.8);
-  if (material.map) material.map.anisotropy = 8;
+  material.normalScale.set(0.5, 0.5); // the generated normal map carries artefacts; the 1.9M-tri mesh has the real detail
+  for (const t of [material.map, material.normalMap, material.roughnessMap]) if (t) t.anisotropy = 16;
+
+  // Full-precision, slightly smoothed normals: the GLB stores 8-bit normals and the
+  // AI-generated surface has mm-scale grain that hard light turns into a rough,
+  // "low-res" look. Smoothing the normals (not the vertices) hides the grain while
+  // keeping every silhouette and feature.
+  const tn = performance.now();
+  computeSmoothNormals(fullMesh.geometry, { iterations: 3 });
+  computeSmoothNormals(lodMesh.geometry, { iterations: 1 });
+  console.info(`[ryoma] normals recomputed in ${(performance.now() - tn).toFixed(0)} ms`);
 
   // --- rig -----------------------------------------------------------------
   const t0 = performance.now();
