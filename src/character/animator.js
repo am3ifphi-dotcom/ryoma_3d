@@ -63,8 +63,8 @@ class Spring3 {
 // ----------------------------------------------------------------------------
 // Right hand lives in the trouser pocket (solved numerically, scripts/solve-pose.mjs):
 // wrist ≈ (0.044, 0.038, 0.106), fingertips inside the thigh.
-const POCKET_R = { upperArmR: [9.3, 35.4, -6.6], lowerArmR: [0, 0.2, 45.1], handR: [-1.2, 0, -16.8], fingersR: [40, 0, -10] };
-const POCKET_L = { upperArmL: [-6.1, -40.4, -6.6], lowerArmL: [0, -0.9, 49.7], handL: [0.3, 0, -26.6], fingersL: [-40, 0, -10] };
+const POCKET_R = { upperArmR: [9.1, 35.8, -6.2], lowerArmR: [0, 0.9, 44.2], handR: [-0.4, 0, -16], fingersR: [40, 0, -10] };
+const POCKET_L = { upperArmL: [-6, -41.2, -7.4], lowerArmL: [0, -0.7, 50.8], handL: [1.1, 0, -26.4], fingersL: [-40, 0, -10] };
 
 function stance(kind, side) {
   const s = side; // +1 = weight on the right leg
@@ -88,9 +88,9 @@ function stance(kind, side) {
 
   if (kind === 'phone') {
     // looking down at the phone in the left hand, right hand in the pocket
-    p.upperArmL = [10, -45.1, 16.3];
-    p.lowerArmL = [0, -0.3, 88.5];
-    p.handL = [-3.3, 0, 5.2];
+    p.upperArmL = [4.1, -55.6, 11.4];
+    p.lowerArmL = [0, -2.4, 118.6];
+    p.handL = [5.6, 0, -10.8];
     p.fingersL = [-30, 0, 0];
     p.neck = [0, 6, -8];
     p.head = [3, 10, -24];

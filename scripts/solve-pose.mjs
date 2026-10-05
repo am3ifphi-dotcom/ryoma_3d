@@ -89,7 +89,7 @@ const tasks = {
   pocketR: { side: 'R', wrist: hipRel(0.05, 0.035, 0.105), tip: hipRel(0.035, -0.04, 0.07), elbowPref: hipRel(-0.05, 0.15, 0.16), fingers: CURL },
   pocketL: { side: 'L', wrist: hipRel(0.05, 0.035, -0.105), tip: hipRel(0.035, -0.04, -0.07), elbowPref: hipRel(-0.05, 0.15, -0.16), fingers: CURL },
   phoneHipL: { side: 'L', wrist: hipRel(0.0, 0.03, -0.125), tip: hipRel(0.03, -0.03, -0.08), elbowPref: hipRel(-0.06, 0.15, -0.16), fingers: [25, 0, 0] },
-  phoneLookL: { side: 'L', wrist: chestRel(0.17, 0.2, -0.06), tip: chestRel(0.2, 0.22, 0.0), elbowPref: chestRel(0.02, 0.15, -0.15), fingers: [30, 0, 0] },
+  phoneLookL: { side: 'L', wrist: chestRel(0.13, 0.25, -0.05), tip: chestRel(0.16, 0.28, 0.01), elbowPref: chestRel(-0.01, 0.16, -0.14), elbowW: 0.6, fingers: [30, 0, 0] },
   // contact gestures (right)
   glasses: { side: 'R', tip: headRel(0.06, 0.404, 0.004), wrist: headRel(0.115, 0.335, 0.03), elbowPref: headRel(0.07, 0.19, 0.08), fingers: [0, 0, 0] },
   chin: { side: 'R', tip: headRel(0.05, 0.36, 0.012), wrist: headRel(0.1, 0.3, 0.05), elbowPref: headRel(0.06, 0.17, 0.12), fingers: [10, 0, 0] },
@@ -107,8 +107,8 @@ const tasks = {
   crossL: { side: 'L', wrist: chestRel(0.19, 0.3, -0.05), tip: chestRel(0.19, 0.31, 0.03), elbowPref: chestRel(0.05, 0.22, -0.17), fingers: [0, 0, 0] },
   spreadR: { side: 'R', wrist: hipRel(0.18, 0.12, 0.25), tip: hipRel(0.25, 0.12, 0.3), elbowPref: hipRel(0.0, 0.15, 0.18), fingers: [-5, 0, 0] },
   spreadL: { side: 'L', wrist: hipRel(0.18, 0.12, -0.25), tip: hipRel(0.25, 0.12, -0.3), elbowPref: hipRel(0.0, 0.15, -0.18), fingers: [-5, 0, 0] },
-  shrugR: { side: 'R', wrist: chestRel(0.14, 0.2, 0.3), tip: chestRel(0.2, 0.21, 0.34), elbowPref: chestRel(-0.02, 0.13, 0.2), fingers: [-5, 0, 0] },
-  shrugL: { side: 'L', wrist: chestRel(0.14, 0.2, -0.3), tip: chestRel(0.2, 0.21, -0.34), elbowPref: chestRel(-0.02, 0.13, -0.2), fingers: [-5, 0, 0] },
+  shrugR: { side: 'R', wrist: chestRel(0.12, 0.16, 0.22), tip: chestRel(0.17, 0.18, 0.26), elbowPref: chestRel(-0.03, 0.14, 0.17), elbowW: 0.6, fingers: [-5, 0, 0] },
+  shrugL: { side: 'L', wrist: chestRel(0.12, 0.16, -0.22), tip: chestRel(0.17, 0.18, -0.26), elbowPref: chestRel(-0.03, 0.14, -0.17), elbowW: 0.6, fingers: [-5, 0, 0] },
   excitedR: { side: 'R', wrist: chestRel(0.1, 0.5, 0.2), tip: chestRel(0.1, 0.58, 0.22), elbowPref: chestRel(0.03, 0.33, 0.2), fingers: [0, 0, 0] },
   excitedL: { side: 'L', wrist: chestRel(0.1, 0.5, -0.2), tip: chestRel(0.1, 0.58, -0.22), elbowPref: chestRel(0.03, 0.33, -0.2), fingers: [0, 0, 0] },
   thinkL: { side: 'L', wrist: chestRel(0.1, 0.15, -0.08), tip: chestRel(0.14, 0.16, 0.0), elbowPref: chestRel(-0.02, 0.14, -0.16), fingers: [20, 0, 0] }, // left arm folded under the right elbow
