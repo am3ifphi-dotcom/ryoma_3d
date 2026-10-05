@@ -73,7 +73,7 @@ function vertexWeights(x, y, z, acc) {
   if (y > 0.33) A *= 1 - smooth(0.33, 0.36, y); // nothing above the shoulder line is arm
 
   if (A > 0) {
-    const t1 = smooth(0.12, 0.18, y); // upper vs lower arm
+    const t1 = smooth(0.128, 0.172, y); // upper vs lower arm (tight blend → less elbow collapse)
     const t2 = smooth(0.0, 0.045, y); // lower arm vs hand
     const t3 = smooth(-0.03, -0.012, y); // hand (palm) vs fingers
     const up = t1;

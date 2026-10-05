@@ -12,7 +12,7 @@
 // Model-space facts (character faces +X, +Z = his right):
 //   eye opening centre y 0.4085, z ±0.021, half-width 0.0105, half-height 0.0022
 //   brow centre line  y = 0.4100 + 0.29·|z|,  |z| 0.009…0.036
-//   mouth             y 0.3715, half-width 0.0125
+//   mouth seam        y 0.3745, half-width 0.0125 (lower lip 0.371–0.373, upper lip 0.375–0.379)
 import * as THREE from 'three';
 import { applySkinWeights } from './rig.js';
 
@@ -225,7 +225,7 @@ function makeMouthMaterial(baseMaterial) {
       shader,
       /* glsl */ `
         uniform float uOpen, uSmile, uWide, uShow;
-        const float MY = 0.3715, MW = 0.0125;
+        const float MY = 0.3745, MW = 0.0125;
         float mAlpha; vec3 mColor; float mMix; float lipLineMix;
       `,
       /* glsl */ `

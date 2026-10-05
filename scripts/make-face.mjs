@@ -91,7 +91,7 @@ const regions = {
   eyeL: (x, y, z, nx) => nx > 0.25 && x > 0.012 && y > 0.4025 && y < 0.4118 && z < -0.0095 && z > -0.0335,
   browR: (x, y, z, nx) => nx > 0.2 && x > 0.022 && z > 0.006 && z < 0.037 && y > 0.4106 && Math.abs(y - browY(z)) < 0.0056,
   browL: (x, y, z, nx) => nx > 0.2 && x > 0.022 && z < -0.006 && z > -0.037 && y > 0.4106 && Math.abs(y - browY(-z)) < 0.0056,
-  mouth: (x, y, z, nx) => nx > 0.2 && x > 0.02 && y > 0.3615 && y < 0.3815 && Math.abs(z) < 0.0205,
+  mouth: (x, y, z, nx) => nx > 0.2 && x > 0.02 && y > 0.3635 && y < 0.386 && Math.abs(z) < 0.0205,
 };
 const patches = {};
 for (const [name, test] of Object.entries(regions)) {

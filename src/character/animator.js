@@ -63,8 +63,8 @@ class Spring3 {
 // ----------------------------------------------------------------------------
 // Right hand lives in the trouser pocket (solved numerically, scripts/solve-pose.mjs):
 // wrist ≈ (0.044, 0.038, 0.106), fingertips inside the thigh.
-const POCKET_R = { upperArmR: [6.1, 25.4, -5], lowerArmR: [0, 16.8, 40.3], handR: [-1.7, 0, -13.1], fingersR: [40, 0, -10] };
-const POCKET_L = { upperArmL: [-3.2, 10.4, 4.1], lowerArmL: [0, -63.6, 34.8], handL: [-4.1, 0, -18.8], fingersL: [-40, 0, -10] };
+const POCKET_R = { upperArmR: [9.3, 35.4, -6.6], lowerArmR: [0, 0.2, 45.1], handR: [-1.2, 0, -16.8], fingersR: [40, 0, -10] };
+const POCKET_L = { upperArmL: [-6.1, -40.4, -6.6], lowerArmL: [0, -0.9, 49.7], handL: [0.3, 0, -26.6], fingersL: [-40, 0, -10] };
 
 function stance(kind, side) {
   const s = side; // +1 = weight on the right leg
@@ -78,7 +78,7 @@ function stance(kind, side) {
     head: [1.5 * s, 0, 2],
     shoulderR: [1, 0, -2], shoulderL: [0, 0, -2],
     ...POCKET_R,
-    upperArmL: [-9, 0, 8], lowerArmL: [0, -10, 36], handL: [0, 0, 10], fingersL: [-25, 0, 0],
+    upperArmL: [-8.6, -36.4, -18.6], lowerArmL: [0, -0.2, 53.1], handL: [0.8, 0, 5.9], fingersL: [-25, 0, 0], // phone at the hip
     upperLegR: [0, 0, 0], lowerLegR: [0, 0, 0], footR: [0, 0, 0],
     upperLegL: [0, 0, 0], lowerLegL: [0, 0, 0], footL: [0, 0, 0],
   };
@@ -88,24 +88,25 @@ function stance(kind, side) {
 
   if (kind === 'phone') {
     // looking down at the phone in the left hand, right hand in the pocket
-    p.upperArmL = [-14, 6, 22];
-    p.lowerArmL = [0, -22, 98];
-    p.handL = [0, 0, 14];
+    p.upperArmL = [10, -45.1, 16.3];
+    p.lowerArmL = [0, -0.3, 88.5];
+    p.handL = [-3.3, 0, 5.2];
+    p.fingersL = [-30, 0, 0];
     p.neck = [0, 6, -8];
     p.head = [3, 10, -24];
     p.upperChest = [-0.6 * s, 6, -4];
     p.chest[2] = -3;
   } else if (kind === 'talk') {
     // facing the player: phone lowered to the hip, right hand stays in the pocket until a gesture pulls it out
-    p.upperArmL = [-9, 0, 10];
-    p.lowerArmL = [0, -10, 42];
-    p.handL = [0, 0, 10];
+    p.upperArmL = [...p.upperArmL]; p.upperArmL[2] += 3; // a touch more relaxed
   } else if (kind === 'pockets') {
     Object.assign(p, POCKET_L);
     p.shoulderL = [-1, 0, -2];
   }
   return p;
 }
+
+export const TWIST_WRIST = 0.7; // share of the forearm twist applied at the wrist
 
 const HIPS_POS_OFFSET = (side) => new THREE.Vector3(0.004, 0, 0.012 * side);
 
@@ -386,10 +387,22 @@ export class CharacterAnimator {
     };
 
     // ---- apply ------------------------------------------------------------
+    // Forearm convention: rz = elbow flexion, ry = pronation/supination (twist about the forearm's own
+    // axis, order ZXY). The twist is distributed 30 % at the elbow / 70 % at the wrist like a real forearm.
+    const carry = { R: 0, L: 0 };
     for (const name in this.bones) {
       const s = this.springs[name].x;
       const d = dist[name] || [0, 0, 0];
-      this.bones[name].rotation.set((s.x + d[0]) * DEG, (s.y + d[1]) * DEG, (s.z + d[2]) * DEG, 'YXZ');
+      const x = s.x + d[0], y = s.y + d[1], z = s.z + d[2];
+      if (name.startsWith('lowerArm')) {
+        const side = name.slice(-1);
+        carry[side] = y * TWIST_WRIST;
+        this.bones[name].rotation.set(x * DEG, y * (1 - TWIST_WRIST) * DEG, z * DEG, 'ZXY');
+      } else if (name.startsWith('hand')) {
+        this.bones[name].rotation.set(x * DEG, (y + carry[name.slice(-1)]) * DEG, z * DEG, 'YXZ');
+      } else {
+        this.bones[name].rotation.set(x * DEG, y * DEG, z * DEG, 'YXZ');
+      }
     }
     this.bones.hips.position.copy(this.hipsRest).add(this.hipsSpring.x);
 
