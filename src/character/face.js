@@ -216,7 +216,11 @@ function makeMouthMaterial(baseMaterial) {
     uWide: { value: 1 }, // width multiplier
     uShow: { value: 1 },
   };
-  // textured copy of the mouth area (keeps the painted shading), mouth drawn on top
+  // Textured copy of the mouth area. Closed: fully transparent (the real lips show).
+  // Open: the band between the lips (pre-skinning y ≈ 0.3723…0.3763), which the jaw bone
+  // stretches apart, is painted as the inside of the mouth: dental arch, gum line, tongue,
+  // and the shadow the upper lip throws into the cavity. Shaded by hand (unlit) so the
+  // cavity never looks like a flat, lit sticker.
   const m = baseMaterial.clone();
   m.transparent = true; m.depthWrite = false;
   m.polygonOffset = true; m.polygonOffsetFactor = -2; m.polygonOffsetUnits = -2;
@@ -228,48 +232,75 @@ function makeMouthMaterial(baseMaterial) {
       /* glsl */ `
         uniform float uOpen, uSmile, uWide, uShow;
         const float MY = 0.3745, MW = 0.0125;
-        float mAlpha; vec3 mColor; float mMix; float lipLineMix;
+        float mAlpha; vec3 mColor; float mMix;
+        float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
       `,
       /* glsl */ `
         {
           float y = vModelPos.y, z = vModelPos.z;
           float hw = MW * uWide;
           float t = clamp(z / hw, -1.0, 1.0);
-          float shape = 1.0 - t * t;                    // 1 at centre, 0 at corners
-          // The smile curve and the opening are real deformation (cornerR/L + jaw bones); this
-          // shader only paints the cavity. Coordinates are pre-skinning: the band between the
-          // lips (y ≈ 0.3725…0.3765) is what the jaw bone stretches open, so painting that
-          // band dark fills exactly the gap that appears.
-          float k = smoothstep(0.03, 0.22, uOpen) * pow(shape, 0.5);
-          float upper = MY + 0.0018 * k;
-          float lower = MY - 0.0022 * k;
+          float ell = sqrt(max(0.0, 1.0 - t * t));            // elliptical opening
+          float k = smoothstep(0.03, 0.22, uOpen);
+          float upper = MY + 0.0017 * k * pow(ell, 0.7);
+          float lower = MY - 0.0023 * k * pow(ell, 0.9);
           float w = fwidth(y) + 0.00004;
           float inside = smoothstep(lower - w, lower + w, y) * (1.0 - smoothstep(upper - w, upper + w, y)) * step(abs(z), hw);
-          // cover alpha: opaque around the mouth, fading to the patch border
           float dz = max(0.0, abs(z) - hw);
           float dy = max(0.0, abs(y - MY) - 0.003);
           mAlpha = (1.0 - smoothstep(0.0, 0.0055, dz)) * (1.0 - smoothstep(0.0, 0.0045, dy)) * uShow;
-          // nothing to draw while the mouth is closed → the real lips show
-          mAlpha *= smoothstep(0.03, 0.12, uOpen);
+          mAlpha *= smoothstep(0.03, 0.12, uOpen);              // closed → the real lips show
           if (mAlpha < 0.004) discard;
-          // cavity + a teeth band right under the upper lip (becomes visible once stretched)
-          vec3 cavity = vec3(0.2, 0.06, 0.06);
-          vec3 teeth = vec3(0.92, 0.9, 0.86);
-          float teethBand = smoothstep(upper - 0.0011, upper - 0.0004, y) * step(0.3, uOpen) * step(abs(z), hw * 0.7);
-          float gap = 1.0 - smoothstep(0.0, 0.00035, abs(fract(z / 0.0028 + 0.5) - 0.5) * 0.0028); // tooth separations
-          teethBand *= 1.0 - gap * 0.35;
-          mColor = mix(cavity, teeth * (0.85 + 0.15 * smoothstep(upper - 0.0011, upper - 0.0007, y)), teethBand);
+
+          // --- inside of the mouth, in opening coordinates (u across, v up: 0 lower lip, 1 upper lip)
+          float v = clamp((y - lower) / max(upper - lower, 1e-5), 0.0, 1.0);
+          float uu = t;
+          float au = abs(uu);
+          float depth = 1.0 - au * au;                           // 1 at the centre, 0 at the corners
+
+          // upper dental arch: the teeth hang from the upper lip; shorter towards the corners
+          float teethTop = 0.93 - 0.06 * au * au;
+          float teethBot = 0.50 + 0.28 * au * au + 0.02 * sin(z / 0.0028 * 6.2831) ; // slight scallop
+          float teethVis = step(au, 0.86);
+          float inTeeth = smoothstep(teethBot - 0.03, teethBot + 0.03, v) * (1.0 - smoothstep(teethTop - 0.02, teethTop + 0.02, v)) * teethVis;
+          // individual teeth: soft gaps + per-tooth shade
+          float tooth = fract(z / 0.0028 + 0.5);
+          float gap = 1.0 - smoothstep(0.0, 0.12, abs(tooth - 0.5) );
+          float toothId = floor(z / 0.0028 + 0.5);
+          float toothShade = 0.94 + 0.06 * hash12(vec2(toothId, 1.0));
+          // arch shading: bright in front, receding (darker) towards the corners, slightly brighter at the biting edge
+          float arch = 0.35 + 0.65 * pow(depth, 0.6);
+          float edgeLight = 0.85 + 0.15 * smoothstep(teethBot + 0.25, teethBot, v);
+          vec3 teethCol = vec3(0.93, 0.90, 0.84) * arch * edgeLight * toothShade;
+          teethCol = mix(teethCol, teethCol * 0.55, gap * 0.8);
+
+          // gum line above the teeth (in the upper lip's shadow)
+          float gumMix = smoothstep(teethTop - 0.02, teethTop + 0.02, v) * teethVis;
+          vec3 gumCol = vec3(0.50, 0.22, 0.22) * (0.5 + 0.5 * depth);
+
+          // cavity: dark behind the teeth, tongue (warm, lighter) rising from the lower lip
+          float tongue = smoothstep(0.55, 0.0, v) * pow(depth, 1.5);
+          vec3 cavity = mix(vec3(0.09, 0.03, 0.03), vec3(0.42, 0.16, 0.16), tongue);
+          cavity *= 0.6 + 0.4 * depth;                            // corners fall into darkness
+
+          vec3 col = cavity;
+          col = mix(col, gumCol, gumMix);
+          col = mix(col, teethCol, inTeeth);
+          // shadow of the upper lip across everything just below it
+          col *= 0.55 + 0.45 * smoothstep(1.0, 0.75, v);
+          // thin dark wet line where the lower lip meets the cavity
+          col *= 0.5 + 0.5 * smoothstep(0.0, 0.08, v);
+
+          mColor = col;
           mMix = inside;
-          // soft dark rim where the lips meet the cavity
-          float dLine = min(abs(y - upper), abs(y - lower));
-          lipLineMix = (1.0 - smoothstep(0.0001, 0.0005, dLine)) * (1.0 - inside) * k * (1.0 - smoothstep(0.85, 1.0, abs(t)));
         }
       `,
-      /* glsl */ `
-        diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.55, 0.3, 0.26), lipLineMix * 0.8);
-        diffuseColor.rgb = mix(diffuseColor.rgb, mColor, mMix);
-        diffuseColor.a *= mAlpha;
-      `
+      /* glsl */ `diffuseColor.a *= mAlpha;`
+    );
+    // the inside is shaded by hand: replace the lit result where the cavity is painted
+    shader.fragmentShader = shader.fragmentShader.replace(
+      '#include <opaque_fragment>',
+      /* glsl */ `outgoingLight = mix(outgoingLight, mColor, mMix);\n#include <opaque_fragment>`
     );
   };
   m.userData.uniforms = u;
@@ -420,7 +451,7 @@ export class Face {
       const b = B['brow' + side];
       if (!b) continue;
       const raise = c['browRaise' + side] * 0.001 + wob; // presets are in mm
-      const tilt = c['browTilt' + side] * DEG * (side === 'R' ? 1 : -1); // + = inner end down
+      const tilt = c['browTilt' + side] * 0.6 * DEG * (side === 'R' ? 1 : -1); // + = inner end down (geometry reads stronger than the old overlay → 60 %)
       b.position.copy(this.rest['brow' + side]).add(_v.set(raise * 0.3, raise, 0)); // the forehead slopes back → keep the brow on the surface
       b.rotation.set(tilt, 0, 0);
     }
