@@ -144,7 +144,7 @@ function faceWeights(x, y, z, w, acc) {
     const az = Math.abs(z);
     if (y > 0.36 && y < 0.392 && az > 0.003 && az < 0.03 && x > 0.035) {
       const dz = az - 0.0125, dy = y - 0.3745;
-      const g = Math.exp(-(dz * dz + dy * dy) / (2 * 0.0065 * 0.0065)) * (1 - used);
+      const g = Math.exp(-(dz * dz + dy * dy) / (2 * 0.008 * 0.008)) * (1 - used);
       if (g > 1e-3) { const n = 'corner' + (z >= 0 ? 'R' : 'L'); acc[n] = (acc[n] || 0) + w * g; used += g; }
     }
     // brows: band around the brow line, tapering at both ends; nothing below the glasses bar

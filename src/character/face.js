@@ -256,7 +256,9 @@ function makeMouthMaterial(baseMaterial) {
           vec3 cavity = vec3(0.2, 0.06, 0.06);
           vec3 teeth = vec3(0.92, 0.9, 0.86);
           float teethBand = smoothstep(upper - 0.0011, upper - 0.0004, y) * step(0.3, uOpen) * step(abs(z), hw * 0.7);
-          mColor = mix(cavity, teeth, teethBand);
+          float gap = 1.0 - smoothstep(0.0, 0.00035, abs(fract(z / 0.0028 + 0.5) - 0.5) * 0.0028); // tooth separations
+          teethBand *= 1.0 - gap * 0.35;
+          mColor = mix(cavity, teeth * (0.85 + 0.15 * smoothstep(upper - 0.0011, upper - 0.0007, y)), teethBand);
           mMix = inside;
           // soft dark rim where the lips meet the cavity
           float dLine = min(abs(y - upper), abs(y - lower));
@@ -309,6 +311,8 @@ function vowelOf(ch) {
   return null; // punctuation → closed
 }
 
+const _v = new THREE.Vector3();
+
 // ---------------------------------------------------------------------------
 export class Face {
   /**
@@ -321,6 +325,8 @@ export class Face {
    */
   constructor({ patches, skeleton, parent, baseMaterial, bones }) {
     this.bones = bones;
+    this.rest = {};
+    for (const n of ['jaw', 'browR', 'browL', 'cornerR', 'cornerL']) if (bones?.[n]) this.rest[n] = bones[n].position.clone();
     this.meshes = [];
     const mk = (geo, mat, order) => {
       const sm = new THREE.SkinnedMesh(geo, mat);
@@ -358,7 +364,7 @@ export class Face {
   /** feed one typed character → mouth flap */
   speakChar(ch) {
     const v = vowelOf(ch);
-    this.talkTarget = v ? VOWEL_OPEN[v] * (0.8 + Math.random() * 0.3) : 0.05;
+    this.talkTarget = v ? VOWEL_OPEN[v] * (0.55 + Math.random() * 0.2) : 0.04; // jaw units (1 = wide open)
     this.talkDecay = 0.16;
   }
   setVisible(b) { this.visible = b; for (const m of this.meshes) m.visible = b; }
@@ -415,23 +421,23 @@ export class Face {
       if (!b) continue;
       const raise = c['browRaise' + side] * 0.001 + wob; // presets are in mm
       const tilt = c['browTilt' + side] * DEG * (side === 'R' ? 1 : -1); // + = inner end down
-      b.position.set(raise * 0.3, raise, 0); // the forehead slopes back → keep the brow on the surface
+      b.position.copy(this.rest['brow' + side]).add(_v.set(raise * 0.3, raise, 0)); // the forehead slopes back → keep the brow on the surface
       b.rotation.set(tilt, 0, 0);
     }
     const open = Math.max(c.open, this.talkOpen);
     if (B.jaw) {
       // 1.0 = ~8° → the chin drops ≈ 10 mm (model) / 17 mm (world); talking uses ≈ 0.3–0.6
       B.jaw.rotation.set(0, 0, -open * 8 * DEG);
-      B.jaw.position.set(-open * 0.0012, 0, 0); // a hint of retraction as the mouth opens
+      B.jaw.position.copy(this.rest.jaw).add(_v.set(-open * 0.0012, 0, 0)); // a hint of retraction as the mouth opens
     }
     const smile = c.smile;
-    const wide = Math.max(0, smile) * 0.0009 - this.talkOpen * 0.0006;
+    const wide = Math.max(0, smile) * 0.0014 - this.talkOpen * 0.0006;
     for (const side of ['R', 'L']) {
       const b = B['corner' + side];
       if (!b) continue;
       const sgn = side === 'R' ? 1 : -1;
       // smile: corners up, slightly back into the cheek and wider; frown: down and in
-      b.position.set(-Math.abs(smile) * 0.0012, smile * 0.0022, sgn * wide);
+      b.position.copy(this.rest['corner' + side]).add(_v.set(-Math.abs(smile) * 0.0018, smile * 0.0038, sgn * wide));
     }
 
     const mu = this.mouth.material.userData.uniforms;
