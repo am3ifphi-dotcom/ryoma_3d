@@ -238,11 +238,11 @@ function makeMouthMaterial(baseMaterial) {
         {
           float y = vModelPos.y, z = vModelPos.z;
           float k = smoothstep(0.03, 0.22, uOpen);
-          float hw = MW * uWide * (1.0 + 0.08 * k);            // the opening reaches a little past the resting corners
+          float hw = MW * uWide * (0.78 + 0.06 * k);           // the opening is narrower than the lip line (lips purse inwards)
           float t = clamp(z / hw, -1.0, 1.0);
           float ell = sqrt(max(0.0, 1.0 - t * t));            // elliptical opening
-          float upper = MY + 0.0017 * k * pow(ell, 0.7);
-          float lower = MY - 0.0023 * k * pow(ell, 0.75);
+          float upper = MY + 0.0009 * k * pow(ell, 0.7);
+          float lower = MY - 0.0013 * k * pow(ell, 0.75);
           float w = fwidth(y) + 0.00004;
           float inside = smoothstep(lower - w, lower + w, y) * (1.0 - smoothstep(upper - w, upper + w, y)) * step(abs(z), hw);
           float dz = max(0.0, abs(z) - hw);
@@ -366,7 +366,7 @@ export class Face {
   /** feed one typed character → mouth flap */
   speakChar(ch) {
     const v = vowelOf(ch);
-    this.talkTarget = v ? VOWEL_OPEN[v] * (0.42 + Math.random() * 0.16) : 0.04; // jaw units (1 = wide open)
+    this.talkTarget = v ? VOWEL_OPEN[v] * (0.34 + Math.random() * 0.14) : 0.04; // jaw units (1 = wide open)
     this.talkDecay = 0.16;
   }
   setVisible(b) { this.visible = b; for (const m of this.meshes) m.visible = b; }
@@ -428,8 +428,8 @@ export class Face {
     }
     const open = Math.max(c.open, this.talkOpen);
     if (B.jaw) {
-      // 1.0 = ~8° → the chin drops ≈ 10 mm (model) / 17 mm (world); talking uses ≈ 0.3–0.6
-      B.jaw.rotation.set(0, 0, -open * 8 * DEG);
+      // 1.0 = 4.5° → the chin drops ≈ 6 mm (model) / 10 mm (world); talking uses ≈ 0.2–0.5
+      B.jaw.rotation.set(0, 0, -open * 4.5 * DEG);
       B.jaw.position.copy(this.rest.jaw).add(_v.set(-open * 0.0012, 0, 0)); // a hint of retraction as the mouth opens
     }
     const smile = c.smile;
