@@ -265,6 +265,7 @@ function tick() {
     const facing = _dir.x * _toR.x + _dir.z * _toR.z;
     nearTarget = !dialogue?.active && dist < 2.7 && facing > 0.55;
     promptEl.classList.toggle('show', nearTarget && (player.locked || document.body.classList.contains('touch')));
+    document.body.classList.toggle('talking', !!dialogue?.active); // hides the crosshair (it sat on his forehead like a wart)
 
     // --- conversation camera assist + FOV ---
     if (dialogue?.active) {

@@ -32,6 +32,7 @@ kbd { display: inline-block; min-width: 1.7em; padding: 0.1em 0.45em; margin: 0 
 #hud { position: fixed; inset: 0; pointer-events: none; z-index: 10; }
 #crosshair { position: absolute; left: 50%; top: 50%; width: 6px; height: 6px; margin: -3px; border-radius: 50%; background: rgba(255, 255, 255, 0.85); box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4); opacity: 0; transition: opacity 0.3s; }
 body.locked #crosshair { opacity: 1; }
+body.talking #crosshair { opacity: 0 !important; }
 #prompt { position: absolute; left: 50%; top: 56%; transform: translate(-50%, 10px); padding: 10px 18px; background: rgba(20, 20, 22, 0.78); color: #fff; border-radius: 999px; font-size: 15px; font-weight: 700; opacity: 0; transition: opacity 0.2s, transform 0.2s; backdrop-filter: blur(4px); }
 #prompt.show { opacity: 1; transform: translate(-50%, 0); }
 #counter { position: absolute; right: 18px; top: 16px; padding: 8px 14px; background: rgba(247, 243, 232, 0.92); border: 2px solid var(--ink); border-radius: 12px; font-weight: 700; font-size: 14px; box-shadow: 3px 3px 0 var(--ink); }

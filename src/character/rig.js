@@ -148,10 +148,12 @@ function faceWeights(x, y, z, w, acc) {
       if (g > 1e-3) { const n = 'corner' + (z >= 0 ? 'R' : 'L'); acc[n] = (acc[n] || 0) + w * g; used += g; }
     }
     // brows: band around the brow line, tapering at both ends; nothing below the glasses bar
-    if (y > 0.405 && y < 0.44 && az > 0.004 && az < 0.045 && x > 0.035) {
+    if (y > 0.405 && y < 0.445 && az > 0.0 && az < 0.05 && x > 0.03) {
       const cy = 0.41 + 0.29 * az;
       const d = Math.abs(y - cy);
-      const g = (1 - smooth(0.004, 0.011, d)) * smooth(0.004, 0.011, az) * (1 - smooth(0.033, 0.042, az)) * smooth(0.4115, 0.4135, y) * (1 - used);
+      // wide, soft falloff (the skin between the brows and above them stretches smoothly);
+      // fades out towards the eye opening (top edge y ≈ 0.4107) so the painted eye never moves
+      const g = (1 - smooth(0.003, 0.016, d)) * smooth(0.0, 0.012, az) * (1 - smooth(0.034, 0.046, az)) * smooth(0.4098, 0.4145, y) * (1 - used);
       if (g > 1e-3) { const n = 'brow' + (z >= 0 ? 'R' : 'L'); acc[n] = (acc[n] || 0) + w * g; used += g; }
     }
   }

@@ -233,7 +233,6 @@ function makeMouthMaterial(baseMaterial) {
         uniform float uOpen, uSmile, uWide, uShow;
         const float MY = 0.3745, MW = 0.0125;
         float mAlpha; vec3 mColor; float mMix;
-        float hash12(vec2 p) { vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
       `,
       /* glsl */ `
         {
@@ -253,44 +252,16 @@ function makeMouthMaterial(baseMaterial) {
           if (mAlpha < 0.004) discard;
 
           // --- inside of the mouth, in opening coordinates (u across, v up: 0 lower lip, 1 upper lip)
+          // Deliberately simple (anime-style): a dark cavity, no teeth. Dark at the back/top,
+          // a faint warm tongue tone near the lower lip, corners falling into shadow.
           float v = clamp((y - lower) / max(upper - lower, 1e-5), 0.0, 1.0);
-          float uu = t;
-          float au = abs(uu);
+          float au = abs(t);
           float depth = 1.0 - au * au;                           // 1 at the centre, 0 at the corners
-
-          // upper dental arch: the teeth hang from the upper lip; shorter towards the corners
-          float teethTop = 0.93 - 0.06 * au * au;
-          float teethBot = 0.50 + 0.28 * au * au + 0.02 * sin(z / 0.0028 * 6.2831) ; // slight scallop
-          float teethVis = 1.0 - smoothstep(0.78, 0.86, au);
-          float inTeeth = smoothstep(teethBot - 0.03, teethBot + 0.03, v) * (1.0 - smoothstep(teethTop - 0.02, teethTop + 0.02, v)) * teethVis;
-          // individual teeth: soft gaps + per-tooth shade
-          float tooth = fract(z / 0.0028 + 0.5);
-          float gap = 1.0 - smoothstep(0.0, 0.12, abs(tooth - 0.5) );
-          float toothId = floor(z / 0.0028 + 0.5);
-          float toothShade = 0.94 + 0.06 * hash12(vec2(toothId, 1.0));
-          // arch shading: bright in front, receding (darker) towards the corners, slightly brighter at the biting edge
-          float arch = 0.35 + 0.65 * pow(depth, 0.6);
-          float edgeLight = 0.85 + 0.15 * smoothstep(teethBot + 0.25, teethBot, v);
-          vec3 teethCol = vec3(0.88, 0.85, 0.79) * arch * edgeLight * toothShade;
-          teethCol = mix(teethCol, teethCol * 0.55, gap * 0.8);
-
-          // gum line above the teeth (in the upper lip's shadow)
-          float gumMix = smoothstep(teethTop - 0.02, teethTop + 0.02, v) * teethVis;
-          vec3 gumCol = vec3(0.50, 0.22, 0.22) * (0.5 + 0.5 * depth);
-
-          // cavity: dark behind the teeth, tongue (warm, lighter) rising from the lower lip
-          float tongue = smoothstep(0.55, 0.0, v) * pow(depth, 1.5);
-          vec3 cavity = mix(vec3(0.09, 0.03, 0.03), vec3(0.42, 0.16, 0.16), tongue);
-          cavity *= 0.6 + 0.4 * depth;                            // corners fall into darkness
-
-          vec3 col = cavity;
-          col = mix(col, gumCol, gumMix);
-          col = mix(col, teethCol, inTeeth);
-          // shadow of the upper lip across everything just below it
-          col *= 0.55 + 0.45 * smoothstep(1.0, 0.75, v);
-          // thin dark wet line where the lower lip meets the cavity
-          col *= 0.5 + 0.5 * smoothstep(0.0, 0.08, v);
-
+          float tongue = smoothstep(0.7, 0.0, v) * pow(depth, 1.2);
+          vec3 col = mix(vec3(0.045, 0.014, 0.014), vec3(0.19, 0.06, 0.06), tongue);
+          col *= 0.55 + 0.45 * depth;                             // corners darker
+          col *= 0.6 + 0.4 * smoothstep(1.0, 0.7, v);             // upper lip shadow
+          col *= 0.7 + 0.3 * smoothstep(0.0, 0.1, v);             // wet line at the lower lip
           mColor = col;
           mMix = inside;
         }
@@ -395,7 +366,7 @@ export class Face {
   /** feed one typed character → mouth flap */
   speakChar(ch) {
     const v = vowelOf(ch);
-    this.talkTarget = v ? VOWEL_OPEN[v] * (0.55 + Math.random() * 0.2) : 0.04; // jaw units (1 = wide open)
+    this.talkTarget = v ? VOWEL_OPEN[v] * (0.42 + Math.random() * 0.16) : 0.04; // jaw units (1 = wide open)
     this.talkDecay = 0.16;
   }
   setVisible(b) { this.visible = b; for (const m of this.meshes) m.visible = b; }
@@ -450,8 +421,8 @@ export class Face {
     for (const side of ['R', 'L']) {
       const b = B['brow' + side];
       if (!b) continue;
-      const raise = c['browRaise' + side] * 0.001 + wob; // presets are in mm
-      const tilt = c['browTilt' + side] * 0.6 * DEG * (side === 'R' ? 1 : -1); // + = inner end down (geometry reads stronger than the old overlay → 60 %)
+      const raise = c['browRaise' + side] * 0.0007 + wob; // presets are in mm (×0.7: geometry reads stronger than the old overlay)
+      const tilt = c['browTilt' + side] * 0.4 * DEG * (side === 'R' ? 1 : -1); // + = inner end down (×0.4 – big shears tear the painted brow)
       b.position.copy(this.rest['brow' + side]).add(_v.set(raise * 0.3, raise, 0)); // the forehead slopes back → keep the brow on the surface
       b.rotation.set(tilt, 0, 0);
     }
