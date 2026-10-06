@@ -238,12 +238,12 @@ function makeMouthMaterial(baseMaterial) {
       /* glsl */ `
         {
           float y = vModelPos.y, z = vModelPos.z;
-          float hw = MW * uWide;
+          float k = smoothstep(0.03, 0.22, uOpen);
+          float hw = MW * uWide * (1.0 + 0.08 * k);            // the opening reaches a little past the resting corners
           float t = clamp(z / hw, -1.0, 1.0);
           float ell = sqrt(max(0.0, 1.0 - t * t));            // elliptical opening
-          float k = smoothstep(0.03, 0.22, uOpen);
           float upper = MY + 0.0017 * k * pow(ell, 0.7);
-          float lower = MY - 0.0023 * k * pow(ell, 0.9);
+          float lower = MY - 0.0023 * k * pow(ell, 0.75);
           float w = fwidth(y) + 0.00004;
           float inside = smoothstep(lower - w, lower + w, y) * (1.0 - smoothstep(upper - w, upper + w, y)) * step(abs(z), hw);
           float dz = max(0.0, abs(z) - hw);
@@ -261,7 +261,7 @@ function makeMouthMaterial(baseMaterial) {
           // upper dental arch: the teeth hang from the upper lip; shorter towards the corners
           float teethTop = 0.93 - 0.06 * au * au;
           float teethBot = 0.50 + 0.28 * au * au + 0.02 * sin(z / 0.0028 * 6.2831) ; // slight scallop
-          float teethVis = step(au, 0.86);
+          float teethVis = 1.0 - smoothstep(0.78, 0.86, au);
           float inTeeth = smoothstep(teethBot - 0.03, teethBot + 0.03, v) * (1.0 - smoothstep(teethTop - 0.02, teethTop + 0.02, v)) * teethVis;
           // individual teeth: soft gaps + per-tooth shade
           float tooth = fract(z / 0.0028 + 0.5);
@@ -271,7 +271,7 @@ function makeMouthMaterial(baseMaterial) {
           // arch shading: bright in front, receding (darker) towards the corners, slightly brighter at the biting edge
           float arch = 0.35 + 0.65 * pow(depth, 0.6);
           float edgeLight = 0.85 + 0.15 * smoothstep(teethBot + 0.25, teethBot, v);
-          vec3 teethCol = vec3(0.93, 0.90, 0.84) * arch * edgeLight * toothShade;
+          vec3 teethCol = vec3(0.88, 0.85, 0.79) * arch * edgeLight * toothShade;
           teethCol = mix(teethCol, teethCol * 0.55, gap * 0.8);
 
           // gum line above the teeth (in the upper lip's shadow)
