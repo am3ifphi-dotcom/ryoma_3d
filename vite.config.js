@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
+  base: process.env.VITE_BASE || '/', // GitHub Pages serves from /ryoma_3d/
   server: {
     host: '0.0.0.0',
     port: 5173,
