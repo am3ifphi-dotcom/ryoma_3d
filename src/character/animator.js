@@ -12,6 +12,7 @@
 
 import * as THREE from 'three';
 import { GESTURES } from './gestures.js';
+import { FACE_BONES } from './rig.js';
 
 const DEG = Math.PI / 180;
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -118,7 +119,9 @@ export class CharacterAnimator {
    * @param {THREE.Object3D} opts.model    inner group (model-space frame)
    */
   constructor({ bones, root, model }) {
-    this.bones = bones;
+    // facial bones are driven by Face, not by the body animator
+    this.bones = Object.fromEntries(Object.entries(bones).filter(([n]) => !FACE_BONES.has(n)));
+    bones = this.bones;
     this.root = root;
     this.model = model;
     this.time = 0;

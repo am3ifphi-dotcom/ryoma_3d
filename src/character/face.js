@@ -1,13 +1,15 @@
 // Facial expressions for a model that has no blend shapes and scattered face UVs.
 //
-// Strategy: small overlay patches (triangles copied from the face by scripts/make-face.mjs)
-// are skinned to the same skeleton and pushed ~0.5 mm out along their normals. Their
-// materials draw the features procedurally in model space (pre-skinning coordinates):
-//   • eyelids  – skin-coloured lid that slides down over the eye opening (blink / half-closed /
-//                happy "^ ^" arc) with a lash line
-//   • eyebrows – a skin "cover" hides the painted brows while a textured copy of the
-//                brow triangles is translated / tilted by the vertex shader
-//   • mouth    – a skin cover with a procedural mouth (smile curve, opening with teeth)
+// Strategy (hybrid):
+//   • real deformation through facial bones (see rig.js: jaw, browR/L, cornerR/L) – the jaw
+//     rotates open, the brows translate / tilt, the mouth corners lift for a smile. Because the
+//     actual mesh moves, the painted texture (brows, lips, cheeks) moves with it.
+//   • small overlay patches (triangles copied from the face by scripts/make-face.mjs), skinned to
+//     the same skeleton and pushed ~0.5 mm out along their normals, draw what geometry cannot:
+//       – eyelids: skin-coloured lid that slides down over the painted eye (blink / half-closed /
+//         happy "^ ^" arc) with a lash line
+//       – mouth cavity + teeth inside the opened jaw
+//     Their shaders work in pre-skinning model space, so they deform exactly like the face.
 //
 // Model-space facts (character faces +X, +Z = his right):
 //   eye opening centre y 0.4085, z ±0.021, half-width 0.0105, half-height 0.0022
@@ -234,30 +236,31 @@ function makeMouthMaterial(baseMaterial) {
           float hw = MW * uWide;
           float t = clamp(z / hw, -1.0, 1.0);
           float shape = 1.0 - t * t;                    // 1 at centre, 0 at corners
-          float lipLine = MY - uSmile * 0.0028 * shape + uSmile * 0.001; // corners up for a smile
-          float openH = uOpen * 0.011 * pow(shape, 0.6);
-          float upper = lipLine + openH * 0.35;
-          float lower = lipLine - openH * 0.65;
+          // The smile curve and the opening are real deformation (cornerR/L + jaw bones); this
+          // shader only paints the cavity. Coordinates are pre-skinning: the band between the
+          // lips (y ≈ 0.3725…0.3765) is what the jaw bone stretches open, so painting that
+          // band dark fills exactly the gap that appears.
+          float k = smoothstep(0.03, 0.22, uOpen) * pow(shape, 0.5);
+          float upper = MY + 0.0018 * k;
+          float lower = MY - 0.0022 * k;
           float w = fwidth(y) + 0.00004;
           float inside = smoothstep(lower - w, lower + w, y) * (1.0 - smoothstep(upper - w, upper + w, y)) * step(abs(z), hw);
           // cover alpha: opaque around the mouth, fading to the patch border
           float dz = max(0.0, abs(z) - hw);
-          float dy = max(0.0, abs(y - MY) - 0.004);
+          float dy = max(0.0, abs(y - MY) - 0.003);
           mAlpha = (1.0 - smoothstep(0.0, 0.0055, dz)) * (1.0 - smoothstep(0.0, 0.0045, dy)) * uShow;
-          // nothing to draw while the mouth is relaxed → let the real mouth show
-          mAlpha *= smoothstep(0.0, 0.05, max(uOpen, abs(uSmile)));
+          // nothing to draw while the mouth is closed → the real lips show
+          mAlpha *= smoothstep(0.03, 0.12, uOpen);
           if (mAlpha < 0.004) discard;
-          // open mouth: cavity + teeth band under the upper lip
-          vec3 cavity = vec3(0.22, 0.07, 0.07);
+          // cavity + a teeth band right under the upper lip (becomes visible once stretched)
+          vec3 cavity = vec3(0.2, 0.06, 0.06);
           vec3 teeth = vec3(0.92, 0.9, 0.86);
-          float teethBand = smoothstep(upper - 0.0022, upper - 0.0006, y) * step(0.25, uOpen) * step(abs(z), hw * 0.75);
+          float teethBand = smoothstep(upper - 0.0011, upper - 0.0004, y) * step(0.3, uOpen) * step(abs(z), hw * 0.7);
           mColor = mix(cavity, teeth, teethBand);
           mMix = inside;
-          // closed lip line (thin, darker skin) with soft corners
-          float dLine = abs(y - lipLine);
-          float line = (1.0 - smoothstep(0.00025, 0.0007, dLine)) * (1.0 - uOpen * 0.8) * (1.0 - smoothstep(0.85, 1.0, abs(t)));
-          float corner = (1.0 - smoothstep(0.0, 0.0015, length(vec2(dLine, max(0.0, abs(z) - hw * 0.92))))) * 0.6;
-          lipLineMix = max(line, corner) * (1.0 - inside);
+          // soft dark rim where the lips meet the cavity
+          float dLine = min(abs(y - upper), abs(y - lower));
+          lipLineMix = (1.0 - smoothstep(0.0001, 0.0005, dLine)) * (1.0 - inside) * k * (1.0 - smoothstep(0.85, 1.0, abs(t)));
         }
       `,
       /* glsl */ `
@@ -314,8 +317,10 @@ export class Face {
    * @param {THREE.Skeleton} opts.skeleton
    * @param {THREE.Object3D} opts.parent     model-space group
    * @param {THREE.Material} opts.baseMaterial
+   * @param {Object<string,THREE.Bone>} opts.bones  name → bone (needs jaw, browR/L, cornerR/L)
    */
-  constructor({ patches, skeleton, parent, baseMaterial }) {
+  constructor({ patches, skeleton, parent, baseMaterial, bones }) {
+    this.bones = bones;
     this.meshes = [];
     const mk = (geo, mat, order) => {
       const sm = new THREE.SkinnedMesh(geo, mat);
@@ -328,11 +333,8 @@ export class Face {
     };
     this.lidR = mk(patches.eyeR, makeLidMaterial(1), 2);
     this.lidL = mk(patches.eyeL, makeLidMaterial(-1), 2);
-    this.coverR = mk(patches.browR, makeBrowCoverMaterial(1), 1);
-    this.coverL = mk(patches.browL, makeBrowCoverMaterial(-1), 1);
-    this.browR = mk(patches.browR, makeBrowMaterial(baseMaterial, 1), 3);
-    this.browL = mk(patches.browL, makeBrowMaterial(baseMaterial, -1), 3);
     this.mouth = mk(patches.mouth, makeMouthMaterial(baseMaterial), 1);
+    // (brow patches from older builds are no longer used – the brows are real geometry now)
 
     this.cur = { ...EXPRESSIONS.neutral };
     this.target = { ...EXPRESSIONS.neutral };
@@ -404,16 +406,37 @@ export class Face {
     uR.uHappy.value = uL.uHappy.value = c.happy * (1 - this.blink);
     uR.uSquint.value = uL.uSquint.value = c.squint * (1 - this.blink);
 
-    const bR = this.browR.material.userData.uniforms, bL = this.browL.material.userData.uniforms;
-    const wob = 0.00015 * Math.sin(this.time * 1.3); // tiny life
-    bR.uRaise.value = c.browRaiseR * 0.001 + wob;
-    bL.uRaise.value = c.browRaiseL * 0.001 + wob;
-    bR.uTilt.value = c.browTiltR * Math.PI / 180;
-    bL.uTilt.value = c.browTiltL * Math.PI / 180;
+    // ---- facial bones ------------------------------------------------------
+    const B = this.bones;
+    const wob = 0.00012 * Math.sin(this.time * 1.3); // tiny life
+    const DEG = Math.PI / 180;
+    for (const side of ['R', 'L']) {
+      const b = B['brow' + side];
+      if (!b) continue;
+      const raise = c['browRaise' + side] * 0.001 + wob; // presets are in mm
+      const tilt = c['browTilt' + side] * DEG * (side === 'R' ? 1 : -1); // + = inner end down
+      b.position.set(raise * 0.3, raise, 0); // the forehead slopes back → keep the brow on the surface
+      b.rotation.set(tilt, 0, 0);
+    }
+    const open = Math.max(c.open, this.talkOpen);
+    if (B.jaw) {
+      // 1.0 = ~8° → the chin drops ≈ 10 mm (model) / 17 mm (world); talking uses ≈ 0.3–0.6
+      B.jaw.rotation.set(0, 0, -open * 8 * DEG);
+      B.jaw.position.set(-open * 0.0012, 0, 0); // a hint of retraction as the mouth opens
+    }
+    const smile = c.smile;
+    const wide = Math.max(0, smile) * 0.0009 - this.talkOpen * 0.0006;
+    for (const side of ['R', 'L']) {
+      const b = B['corner' + side];
+      if (!b) continue;
+      const sgn = side === 'R' ? 1 : -1;
+      // smile: corners up, slightly back into the cheek and wider; frown: down and in
+      b.position.set(-Math.abs(smile) * 0.0012, smile * 0.0022, sgn * wide);
+    }
 
     const mu = this.mouth.material.userData.uniforms;
-    mu.uOpen.value = Math.max(c.open, this.talkOpen);
-    mu.uSmile.value = c.smile;
-    mu.uWide.value = 1 + 0.15 * Math.max(0, c.smile) - 0.1 * this.talkOpen;
+    mu.uOpen.value = open;
+    mu.uSmile.value = smile;
+    mu.uWide.value = 1 + 0.08 * Math.max(0, smile) - 0.08 * this.talkOpen;
   }
 }

@@ -21,6 +21,13 @@ export const BONE_DEFS = [
   ['neck', 'upperChest', [-0.03, 0.335, 0]],
   ['head', 'neck', [-0.02, 0.362, 0]],
   ['headTop', 'head', [-0.01, 0.49, 0]],
+  // facial bones (children of the head) – the model has no blend shapes, so the
+  // jaw / brows / mouth corners are deformed by bones with soft falloff weights
+  ['jaw', 'head', [0.0, 0.384, 0]], // hinge just in front of the ear canal; rotation.z < 0 opens
+  ['browR', 'head', [0.055, 0.418, 0.022]],
+  ['browL', 'head', [0.055, 0.418, -0.022]],
+  ['cornerR', 'head', [0.06, 0.3745, 0.0125]],
+  ['cornerL', 'head', [0.06, 0.3745, -0.0125]],
 
   ['shoulderR', 'upperChest', [-0.02, 0.31, 0.04]],
   ['upperArmR', 'shoulderR', [-0.02, 0.295, 0.115]],
@@ -48,6 +55,7 @@ export const BONE_DEFS = [
 ];
 
 export const BONE_INDEX = Object.fromEntries(BONE_DEFS.map((d, i) => [d[0], i]));
+export const FACE_BONES = new Set(['jaw', 'browR', 'browL', 'cornerR', 'cornerL']);
 
 function smooth(a, b, x) {
   const t = Math.min(1, Math.max(0, (x - a) / (b - a)));
@@ -111,13 +119,43 @@ function vertexWeights(x, y, z, acc) {
 
   // ---- torso column ---------------------------------------------------
   // (chin bottom ≈ 0.358, visible neck ≈ 0.34–0.358, collar/shoulder top ≈ 0.33)
-  if (y >= 0.368) acc.head = (acc.head || 0) + col;
-  else if (y >= 0.342) { const t = smooth(0.342, 0.368, y); acc.head = (acc.head || 0) + col * t; acc.neck = (acc.neck || 0) + col * (1 - t); }
+  if (y >= 0.368) faceWeights(x, y, z, col, acc);
+  else if (y >= 0.342) { const t = smooth(0.342, 0.368, y); faceWeights(x, y, z, col * t, acc); acc.neck = (acc.neck || 0) + col * (1 - t); }
   else if (y >= 0.3) { const t = smooth(0.3, 0.342, y); acc.neck = (acc.neck || 0) + col * t; acc.upperChest = (acc.upperChest || 0) + col * (1 - t); }
   else if (y >= 0.2) { const t = smooth(0.2, 0.3, y); acc.upperChest = (acc.upperChest || 0) + col * t; acc.chest = (acc.chest || 0) + col * (1 - t); }
   else if (y >= 0.09) { const t = smooth(0.09, 0.2, y); acc.chest = (acc.chest || 0) + col * t; acc.spine = (acc.spine || 0) + col * (1 - t); }
   else if (y >= 0.0) { const t = smooth(0.0, 0.09, y); acc.spine = (acc.spine || 0) + col * t; acc.hips = (acc.hips || 0) + col * (1 - t); }
   else acc.hips = (acc.hips || 0) + col;
+}
+
+/**
+ * Splits the head weight `w` of a vertex between the head and the facial bones.
+ * Face landmarks (model space, face points +X): mouth seam y 0.3745 (|z| ≤ 0.0125),
+ * chin bottom 0.358, nose base 0.381, brow line y = 0.410 + 0.29·|z|, |z| 0.009…0.036.
+ */
+function faceWeights(x, y, z, w, acc) {
+  let used = 0;
+  const front = smooth(0.0, 0.03, x); // only the face itself, never the back of the head
+  if (front > 0) {
+    // jaw: everything below the lip seam on the front of the face, fading out towards the neck
+    const jaw = front * (1 - smooth(0.374, 0.377, y)) * smooth(0.335, 0.352, y) * (1 - smooth(0.055, 0.075, Math.abs(z)));
+    if (jaw > 1e-3) { acc.jaw = (acc.jaw || 0) + w * jaw; used += jaw; }
+    // mouth corners (smile / frown): gaussian blob around each corner
+    const az = Math.abs(z);
+    if (y > 0.36 && y < 0.392 && az > 0.003 && az < 0.03 && x > 0.035) {
+      const dz = az - 0.0125, dy = y - 0.3745;
+      const g = Math.exp(-(dz * dz + dy * dy) / (2 * 0.0065 * 0.0065)) * (1 - used);
+      if (g > 1e-3) { const n = 'corner' + (z >= 0 ? 'R' : 'L'); acc[n] = (acc[n] || 0) + w * g; used += g; }
+    }
+    // brows: band around the brow line, tapering at both ends; nothing below the glasses bar
+    if (y > 0.405 && y < 0.44 && az > 0.004 && az < 0.045 && x > 0.035) {
+      const cy = 0.41 + 0.29 * az;
+      const d = Math.abs(y - cy);
+      const g = (1 - smooth(0.004, 0.011, d)) * smooth(0.004, 0.011, az) * (1 - smooth(0.033, 0.042, az)) * smooth(0.4115, 0.4135, y) * (1 - used);
+      if (g > 1e-3) { const n = 'brow' + (z >= 0 ? 'R' : 'L'); acc[n] = (acc[n] || 0) + w * g; used += g; }
+    }
+  }
+  acc.head = (acc.head || 0) + w * (1 - Math.min(1, used));
 }
 
 /** Adds skinIndex / skinWeight attributes to a geometry whose positions are in model space. */

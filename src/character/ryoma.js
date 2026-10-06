@@ -93,7 +93,7 @@ export async function loadRyoma({ onProgress } = {}) {
 
   const material = fullMesh.material;
   material.roughness = 1.0;
-  material.metalness = 1.0; // ORM texture drives both
+  material.metalness = 0; // the ORM metallic channel is noise only (padded/cleaned by scripts/pad-textures.py)
   material.envMapIntensity = 0.6;
   material.normalScale.set(0.5, 0.5); // the generated normal map carries artefacts; the 1.9M-tri mesh has the real detail
   for (const t of [material.map, material.normalMap, material.roughnessMap]) if (t) t.anisotropy = 16;
@@ -142,7 +142,7 @@ export async function loadRyoma({ onProgress } = {}) {
   skinnedLod.bind(skeleton);
 
   // --- face (eyelids / brows / mouth overlays) -----------------------------------
-  const face = new Face({ patches: facePatches, skeleton, parent: model, baseMaterial: material });
+  const face = new Face({ patches: facePatches, skeleton, parent: model, baseMaterial: material, bones });
   face.setExpression('bored', { speed: 50 }); // he is on his phone when the player arrives
 
   // --- props -------------------------------------------------------------------
